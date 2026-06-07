@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-background: oklch(0.985 0.002 247);
+  --color-foreground: oklch(0.145 0.015 265);
+  --color-card: oklch(1 0 0 / 0.7);
+  --color-card-foreground: oklch(0.145 0.015 265);
+  --color-primary: oklch(0.45 0.2 265);
+  --color-primary-foreground: oklch(0.985 0.002 247);
+  --color-secondary: oklch(0.955 0.01 265);
+  --color-secondary-foreground: oklch(0.25 0.02 265);
+  --color-muted: oklch(0.955 0.008 265);
+  --color-muted-foreground: oklch(0.5 0.02 265);
+  --color-accent: oklch(0.92 0.03 265);
+  --color-accent-foreground: oklch(0.25 0.02 265);
+  --color-destructive: oklch(0.55 0.22 25);
+  --color-border: oklch(0.9 0.01 265 / 0.6);
+  --color-ring: oklch(0.45 0.2 265);
+  --color-success: oklch(0.55 0.15 145);
+  --color-warning: oklch(0.75 0.15 85);
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+}
+
+.dark {
+  --color-background: oklch(0.13 0.015 265);
+  --color-foreground: oklch(0.93 0.01 265);
+  --color-card: oklch(0.18 0.02 265 / 0.6);
+  --color-card-foreground: oklch(0.93 0.01 265);
+  --color-primary: oklch(0.65 0.18 265);
+  --color-primary-foreground: oklch(0.13 0.015 265);
+  --color-secondary: oklch(0.22 0.02 265);
+  --color-secondary-foreground: oklch(0.9 0.01 265);
+  --color-muted: oklch(0.22 0.015 265);
+  --color-muted-foreground: oklch(0.65 0.02 265);
+  --color-accent: oklch(0.25 0.03 265);
+  --color-accent-foreground: oklch(0.93 0.01 265);
+  --color-border: oklch(0.3 0.02 265 / 0.5);
+  --color-ring: oklch(0.65 0.18 265);
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+}
+
+.glass {
+  background: var(--color-card);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--color-border);
+}
+
+.gradient-bg {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, oklch(0.55 0.15 265 / 0.15), transparent),
+    var(--color-background);
+}
+
+.dark .gradient-bg {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, oklch(0.45 0.2 265 / 0.2), transparent),
+    var(--color-background);
+}

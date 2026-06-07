@@ -1,0 +1,1 @@
+ALTER TABLE "api_keys" ADD COLUMN IF NOT EXISTS "price_per_million_rub" DECIMAL(12,6) NOT NULL DEFAULT 0;
