@@ -6,6 +6,7 @@ import {
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { OrganizationsService } from '../organizations/organizations.service';
 import { CreateUserDto, UpdateUserDto } from './dto/users.dto';
 import { PaginationQueryDto } from '../common/dto/pagination.dto';
 import { skipTake, paginate } from '../common/utils/pagination.util';
@@ -16,6 +17,7 @@ export class UsersService {
   constructor(
     private prisma: PrismaService,
     private audit: AuditService,
+    private organizations: OrganizationsService,
   ) {}
 
   async findAll(query: PaginationQueryDto) {
@@ -91,6 +93,7 @@ export class UsersService {
     });
 
     await this.audit.log(AuditAction.USER_CREATED, adminId, { userId: user.id, email: user.email });
+    await this.organizations.ensurePersonalOrganization(user.id, user.email, user.name);
     return user;
   }
 

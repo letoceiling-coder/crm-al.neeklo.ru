@@ -7,6 +7,7 @@ import {
 } from '../common/utils/billing.util';
 import { serializeBigInts } from '../common/utils/serialize.util';
 import { ExchangeRateService } from '../currency/exchange-rate.service';
+import { TokenCostService } from '../token-cost/token-cost.service';
 import { RequestStatus, UserRole } from '@prisma/client';
 
 export interface LogUsageParams {
@@ -26,6 +27,8 @@ export interface LogUsageParams {
   requestPath?: string;
   ipAddress?: string;
   profileSlug?: string;
+  tokenCostSnapshotId?: string;
+  costUsd?: number;
 }
 
 @Injectable()
@@ -33,11 +36,28 @@ export class UsageService {
   constructor(
     private prisma: PrismaService,
     private exchange: ExchangeRateService,
+    private tokenCost: TokenCostService,
   ) {}
 
   async logUsage(params: LogUsageParams) {
     const totalTokens = params.inputTokens + params.outputTokens;
     const margin = params.userCost - params.realCost;
+
+    let tokenCostSnapshotId = params.tokenCostSnapshotId;
+    let costUsd = params.costUsd;
+
+    if (params.modelUsed && tokenCostSnapshotId == null) {
+      const resolved = await this.tokenCost.resolveAndCompute(
+        'openrouter',
+        params.modelUsed,
+        params.inputTokens,
+        params.outputTokens,
+      );
+      if (resolved.snapshot) {
+        tokenCostSnapshotId = resolved.snapshot.id;
+        costUsd = resolved.costUsd ?? undefined;
+      }
+    }
 
     const log = await this.prisma.usageLog.create({
       data: {
@@ -45,6 +65,7 @@ export class UsageService {
         apiKeyId: params.apiKeyId,
         agentId: params.agentId,
         modelId: params.modelId,
+        tokenCostSnapshotId,
         modelUsed: params.modelUsed,
         profileSlug: params.profileSlug,
         inputTokens: params.inputTokens,
@@ -52,6 +73,7 @@ export class UsageService {
         totalTokens,
         realCost: params.realCost,
         userCost: params.userCost,
+        costUsd,
         margin,
         responseTimeMs: params.responseTimeMs,
         status: params.status,

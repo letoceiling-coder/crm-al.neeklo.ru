@@ -1,14 +1,152 @@
-import { PrismaClient, UserRole, ModelLabel } from '@prisma/client';
+import { PrismaClient, UserRole, ModelLabel, AIProvider, OrganizationType, OrganizationRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { encryptSecret } from '../src/common/utils/secret-encryption.util';
+import { seedAgentTemplates } from './seed-agent-templates';
+import { seedToolCatalog } from './seed-tools';
 
 const prisma = new PrismaClient();
+
+const PLATFORM_ORG_ID = 'org_platform_system';
+
+async function ensurePlatformOrganization() {
+  return prisma.organization.upsert({
+    where: { slug: 'platform-system' },
+    update: {},
+    create: {
+      id: PLATFORM_ORG_ID,
+      type: OrganizationType.COMPANY,
+      name: 'Platform System',
+      slug: 'platform-system',
+      planLimits: { create: { planName: 'platform' } },
+    },
+  });
+}
+
+async function ensureUserOrganization(userId: string, email: string, name?: string | null) {
+  const existing = await prisma.organizationMember.findFirst({
+    where: { userId, role: OrganizationRole.OWNER },
+  });
+  if (existing) return existing.organizationId;
+
+  const slugBase = email.split('@')[0].replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'user';
+  let slug = slugBase;
+  let n = 0;
+  while (await prisma.organization.findUnique({ where: { slug } })) {
+    n += 1;
+    slug = `${slugBase}-${n}`;
+  }
+
+  const org = await prisma.organization.create({
+    data: {
+      type: OrganizationType.PERSONAL,
+      name: name || email,
+      slug,
+      members: { create: { userId, role: OrganizationRole.OWNER } },
+      planLimits: { create: {} },
+    },
+  });
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { activeOrganizationId: org.id },
+  });
+
+  await prisma.apiKey.updateMany({
+    where: { userId },
+    data: { organizationId: org.id },
+  });
+
+  return org.id;
+}
+
+async function seedPlatformProvider(platformOrgId: string) {
+  const openRouterKey = process.env.OPENROUTER_DEFAULT_KEY;
+  if (!openRouterKey) {
+    console.warn('OPENROUTER_DEFAULT_KEY not set — skipping platform ProviderAccount secret');
+    return null;
+  }
+
+  const existing = await prisma.providerAccount.findFirst({
+    where: { organizationId: null, provider: AIProvider.OPENROUTER, isDefault: true },
+  });
+  if (existing) return existing;
+
+  const { ciphertext, iv, tag } = encryptSecret(openRouterKey);
+  const secret = await prisma.encryptedSecret.create({
+    data: {
+      organizationId: platformOrgId,
+      key: 'api_key',
+      ciphertext,
+      iv,
+      tag,
+    },
+  });
+
+  return prisma.providerAccount.create({
+    data: {
+      id: 'provider_platform_openrouter',
+      organizationId: null,
+      provider: AIProvider.OPENROUTER,
+      name: 'Platform OpenRouter',
+      isDefault: true,
+      apiKeySecretId: secret.id,
+      metadata: { source: 'seed' },
+    },
+  });
+}
+
+async function seedTokenCostSnapshots() {
+  const models = await prisma.model.findMany();
+  const now = new Date();
+  for (const model of models) {
+    await prisma.tokenCostSnapshot.upsert({
+      where: {
+        provider_model_effectiveFrom: {
+          provider: 'openrouter',
+          model: model.openrouterId,
+          effectiveFrom: now,
+        },
+      },
+      update: {},
+      create: {
+        provider: 'openrouter',
+        model: model.openrouterId,
+        inputPrice: model.inputPrice,
+        outputPrice: model.outputPrice,
+        effectiveFrom: now,
+      },
+    });
+  }
+}
+
+async function seedEmbeddingProfile(providerAccountId?: string) {
+  const existing = await prisma.embeddingProfile.findFirst({
+    where: { organizationId: null, isDefault: true },
+  });
+  if (existing) return existing;
+
+  return prisma.embeddingProfile.create({
+    data: {
+      id: 'embed_profile_platform_default',
+      organizationId: null,
+      name: 'Platform Default 3072',
+      model: 'openai/text-embedding-3-large',
+      dimensions: 3072,
+      provider: 'openrouter',
+      isDefault: true,
+      providerAccountId: providerAccountId ?? null,
+    },
+  });
+}
 
 async function main() {
   const adminPassword = await bcrypt.hash('admin123', 12);
   const devPassword = await bcrypt.hash('dev123', 12);
   const prodAdminPassword = await bcrypt.hash('123123123', 12);
 
-  await prisma.user.upsert({
+  const platformOrg = await ensurePlatformOrganization();
+
+  const admin = await prisma.user.upsert({
     where: { email: 'admin@ai-gateway.local' },
     update: {},
     create: {
@@ -35,7 +173,7 @@ async function main() {
     },
   });
 
-  await prisma.user.upsert({
+  const dev = await prisma.user.upsert({
     where: { email: 'dev@ai-gateway.local' },
     update: {},
     create: {
@@ -45,6 +183,10 @@ async function main() {
       role: UserRole.DEVELOPER,
     },
   });
+
+  for (const u of [admin, dev]) {
+    await ensureUserOrganization(u.id, u.email, u.name);
+  }
 
   const models = [
     {
@@ -173,7 +315,13 @@ async function main() {
     }
   }
 
-  console.log('Seed completed');
+  const provider = await seedPlatformProvider(platformOrg.id);
+  await seedTokenCostSnapshots();
+  await seedEmbeddingProfile(provider?.id);
+  await seedAgentTemplates(prisma);
+  await seedToolCatalog(prisma);
+
+  console.log('Seed completed (Stage 0 foundation + Stage 1A templates + Stage 4 tools catalog)');
   console.log('Admin: admin@ai-gateway.local / admin123');
   console.log('Developer: dev@ai-gateway.local / dev123');
 }

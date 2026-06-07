@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Moon, Sun, Monitor, Shield, Key } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Moon, Sun, Monitor, Shield, Key, LayoutTemplate } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useThemeStore } from '@/stores/theme';
 import { useAuthStore } from '@/stores/auth';
@@ -41,6 +42,21 @@ export function SettingsPage() {
         <h1 className="text-2xl font-bold">Настройки</h1>
         <p className="text-muted-foreground">Профиль и параметры аккаунта</p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <LayoutTemplate className="h-5 w-5" />
+            Шаблоны ассистентов
+          </CardTitle>
+          <CardDescription>Каталог готовых шаблонов для создания AI ассистентов</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" asChild>
+            <Link to="/settings/assistant-templates">Открыть каталог шаблонов</Link>
+          </Button>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

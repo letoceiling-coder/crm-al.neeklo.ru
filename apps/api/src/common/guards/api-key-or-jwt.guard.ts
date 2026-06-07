@@ -48,6 +48,7 @@ export class ApiKeyOrJwtGuard extends AuthGuard('jwt') {
         id: apiKey.userId,
         email: apiKey.user.email,
         role: apiKey.user.role,
+        organizationId: apiKey.organizationId,
       };
       request.apiKey = apiKey;
       return true;

@@ -40,6 +40,14 @@ export function generateApiKey(): { key: string; prefix: string; hash: string } 
   return { key, prefix, hash };
 }
 
+export function generateAgentApiKey(): { key: string; prefix: string; hash: string } {
+  const raw = randomBytes(32).toString('hex');
+  const key = `agt_${raw}`;
+  const prefix = key.slice(0, 12);
+  const hash = hashApiKey(key);
+  return { key, prefix, hash };
+}
+
 export function calculateMargin(costPrice: number, sellPrice: number): number {
   return sellPrice - costPrice;
 }

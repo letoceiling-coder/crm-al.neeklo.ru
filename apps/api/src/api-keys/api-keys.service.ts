@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { OrganizationsService } from '../organizations/organizations.service';
 import { CreateApiKeyDto, UpdateApiKeyDto } from './dto/api-keys.dto';
 import {
   generateApiKey,
@@ -40,6 +41,7 @@ export class ApiKeysService {
   constructor(
     private prisma: PrismaService,
     private audit: AuditService,
+    private organizations: OrganizationsService,
   ) {}
 
   async findAllForUser(userId: string) {
@@ -118,6 +120,7 @@ export class ApiKeysService {
   }
 
   async create(userId: string, dto: CreateApiKeyDto) {
+    const { organizationId } = await this.organizations.resolveOrganizationContext(userId);
     const { key, prefix, hash } = generateApiKey();
     const useProfile = dto.routingMode !== 'custom';
     const hasCustomChain = (dto.modelChain?.length ?? 0) > 0;
@@ -151,6 +154,7 @@ export class ApiKeysService {
       const created = await tx.apiKey.create({
         data: {
           userId,
+          organizationId,
           name: dto.name,
           keyHash: hash,
           keyEncrypted: encryptApiKey(key),

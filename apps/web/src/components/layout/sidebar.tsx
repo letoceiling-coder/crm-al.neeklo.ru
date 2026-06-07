@@ -15,6 +15,15 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
+  MessageSquare,
+  BookMarked,
+  ListTodo,
+  Wrench,
+  Building2,
+  Workflow,
+  Brain,
+  Plug,
+  Inbox,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth';
@@ -25,7 +34,15 @@ const mainNav = [
   { to: '/keys', icon: Key, label: 'API Ключи' },
   { to: '/key-models', icon: Layers, label: 'Модели для ключей' },
   { to: '/models', icon: Cpu, label: 'Каталог OpenRouter' },
-  { to: '/agents', icon: Bot, label: 'Агенты' },
+  { to: '/assistants', icon: MessageSquare, label: 'AI Ассистенты' },
+  { to: '/knowledge', icon: BookMarked, label: 'Базы знаний' },
+  { to: '/knowledge/jobs', icon: ListTodo, label: 'Задачи обработки' },
+  { to: '/tools', icon: Wrench, label: 'Инструменты' },
+  { to: '/crm', icon: Building2, label: 'CRM' },
+  { to: '/workflows', icon: Workflow, label: 'Автоматизация' },
+  { to: '/memory', icon: Brain, label: 'Память' },
+  { to: '/integrations', icon: Plug, label: 'Интеграции' },
+  { to: '/messages', icon: Inbox, label: 'Сообщения' },
   { to: '/analytics', icon: BarChart3, label: 'Аналитика' },
   { to: '/docs', icon: BookOpen, label: 'Документация' },
   { to: '/settings', icon: Settings, label: 'Настройки' },
@@ -33,6 +50,7 @@ const mainNav = [
 
 const adminNav = [
   { to: '/admin', icon: Shield, label: 'Admin Dashboard' },
+  { to: '/agents', icon: Bot, label: 'Глобальные агенты' },
   { to: '/admin/users', icon: Users, label: 'Пользователи' },
   { to: '/admin/pricing', icon: DollarSign, label: 'Тарифы' },
   { to: '/admin/usage', icon: BarChart3, label: 'Usage' },

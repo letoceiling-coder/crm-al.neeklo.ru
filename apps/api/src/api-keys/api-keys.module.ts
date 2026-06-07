@@ -4,10 +4,11 @@ import { ApiKeysController, ApiKeysAdminController } from './api-keys.controller
 import { BalanceV1Controller } from './balance-v1.controller';
 import { BalanceTopUpsV1Controller } from './balance-topups-v1.controller';
 import { AuditModule } from '../audit/audit.module';
+import { OrganizationsModule } from '../organizations/organizations.module';
 import { ApiKeyOrJwtGuard } from '../common/guards/api-key-or-jwt.guard';
 
 @Module({
-  imports: [AuditModule],
+  imports: [AuditModule, OrganizationsModule],
   controllers: [
     ApiKeysController,
     ApiKeysAdminController,

@@ -82,6 +82,75 @@ enum ApiKeyTopUpType {
   TOP_UP
 }
 
+enum OrganizationType {
+  PERSONAL
+  COMPANY
+}
+
+enum OrganizationRole {
+  OWNER
+  ADMIN
+  MANAGER
+  OPERATOR
+}
+
+enum AIProvider {
+  OPENAI
+  OPENROUTER
+  ANTHROPIC
+  GEMINI
+  DEEPSEEK
+  MISTRAL
+  OLLAMA
+  CUSTOM
+}
+
+enum ProviderAccountStatus {
+  ACTIVE
+  INACTIVE
+  ERROR
+}
+
+enum AgentType {
+  LAWYER
+  MARKETING
+  DEVELOPER
+  SALES
+  SUPPORT
+  HR
+  REAL_ESTATE
+  EDUCATION
+  ASSISTANT
+  CUSTOM
+}
+
+enum AgentStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum AgentApiKeyEnvironment {
+  PRODUCTION
+  TEST
+  CRM
+  TELEGRAM
+  WEBHOOK
+  INTERNAL
+}
+
+enum AgentApiKeyScope {
+  CHAT
+  TOOLS_INVOKE
+  KB_READ
+  MEMORY_READ
+  MEMORY_WRITE
+  CRM_READ
+  CRM_WRITE
+  ADMIN
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -92,21 +161,127 @@ model User {
   twoFaEnabled Boolean  @default(false) @map("two_fa_enabled")
   twoFaSecret  String?  @map("two_fa_secret")
   isActive     Boolean  @default(true) @map("is_active")
+  activeOrganizationId String? @map("active_organization_id")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
+  activeOrganization Organization? @relation("ActiveOrganization", fields: [activeOrganizationId], references: [id], onDelete: SetNull)
+  organizationMembers OrganizationMember[]
   apiKeys   ApiKey[]
   keyModelProfiles KeyModelProfile[]
   apiKeyTopUps ApiKeyTopUp[]
   usageLogs UsageLog[]
   auditLogs AuditLog[]
+  keyAgentsCreated KeyAgent[] @relation("KeyAgentCreatedBy")
+  keyAgentsUpdated KeyAgent[] @relation("KeyAgentUpdatedBy")
+  knowledgeBasesCreated KnowledgeBase[] @relation("KnowledgeBaseCreatedBy")
+  crmClientsOwned CrmClient[] @relation("CrmClientOwner")
+  crmLeadsAssigned CrmLead[] @relation("CrmLeadAssignee")
+  crmTasksAssigned CrmTask[] @relation("CrmTaskAssignee")
+  crmNotesAuthored CrmNote[] @relation("CrmNoteAuthor")
+  crmActivitiesAuthored CrmActivity[] @relation("CrmActivityAuthor")
+  workflowsCreated Workflow[] @relation("WorkflowCreatedBy")
+  workflowsUpdated Workflow[] @relation("WorkflowUpdatedBy")
 
   @@map("users")
+}
+
+model Organization {
+  id        String           @id @default(cuid())
+  type      OrganizationType @default(PERSONAL)
+  name      String
+  slug      String           @unique
+  isActive  Boolean          @default(true) @map("is_active")
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  members          OrganizationMember[]
+  planLimits       PlanLimits?
+  apiKeys          ApiKey[]
+  encryptedSecrets EncryptedSecret[]
+  providerAccounts ProviderAccount[]
+  embeddingProfiles EmbeddingProfile[]
+  activeUsers      User[] @relation("ActiveOrganization")
+  keyAgents        KeyAgent[]
+  agentTemplates   AgentTemplate[] @relation("AuthorOrganization")
+  knowledgeBases   KnowledgeBase[]
+  knowledgeSources KnowledgeSource[]
+  knowledgeDocuments KnowledgeDocument[]
+  knowledgeCategories KnowledgeCategory[]
+  knowledgeTopics  KnowledgeTopic[]
+  knowledgeTags    KnowledgeTag[]
+  knowledgeJobs    KnowledgeJob[]
+  knowledgeChunks  KnowledgeChunk[]
+  assistantKnowledgeBindings AssistantKnowledgeBinding[]
+  retrievalLogs    RetrievalLog[]
+  toolInstances    ToolInstance[]
+  assistantToolBindings AssistantToolBinding[]
+  toolExecutionLogs ToolExecutionLog[]
+  crmWorkspace     CrmWorkspace?
+  crmClients       CrmClient[]
+  crmLeads         CrmLead[]
+  crmDeals         CrmDeal[]
+  crmTasks         CrmTask[]
+  crmNotes         CrmNote[]
+  crmActivities    CrmActivity[]
+  workflows        Workflow[]
+  workflowExecutions WorkflowExecution[]
+  memoryProfiles   MemoryProfile[]
+  memoryEntries    MemoryEntry[]
+  memorySearchLogs MemorySearchLog[]
+  integrationAccounts IntegrationAccount[]
+  assistantIntegrationChannels AssistantIntegrationChannel[]
+  conversations    Conversation[]
+  integrationEvents IntegrationEvent[]
+
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id             String           @id @default(cuid())
+  organizationId String           @map("organization_id")
+  userId         String           @map("user_id")
+  role           OrganizationRole @default(OPERATOR)
+  createdAt      DateTime         @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@map("organization_members")
+}
+
+model PlanLimits {
+  id                String @id @default(cuid())
+  organizationId    String @unique @map("organization_id")
+  planName          String @default("free") @map("plan_name")
+  maxApiKeys        Int    @default(3) @map("max_api_keys")
+  maxAssistants     Int    @default(10) @map("max_assistants")
+  maxAgentApiKeys   Int    @default(20) @map("max_agent_api_keys")
+  maxKnowledgeBases Int    @default(5) @map("max_knowledge_bases")
+  maxDocuments      Int    @default(1000) @map("max_documents")
+  maxChunks         Int    @default(100000) @map("max_chunks")
+  maxToolInstances  Int    @default(20) @map("max_tool_instances")
+  maxStorageMb      Int    @default(5120) @map("max_storage_mb")
+  maxSources        Int    @default(50) @map("max_sources")
+  maxJobs           Int    @default(500) @map("max_jobs")
+  maxUrlsPerSitemap Int    @default(500) @map("max_urls_per_sitemap")
+  maxMemoryProfiles Int    @default(50) @map("max_memory_profiles")
+  maxMemoryEntries  Int    @default(10000) @map("max_memory_entries")
+  maxMemoryStorageMb Int   @default(100) @map("max_memory_storage_mb")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("plan_limits")
 }
 
 model ApiKey {
   id              String       @id @default(cuid())
   userId          String       @map("user_id")
+  organizationId  String       @map("organization_id")
   name            String
   keyHash         String       @unique @map("key_hash")
   keyEncrypted    String?      @map("key_encrypted")
@@ -129,14 +304,17 @@ model ApiKey {
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
 
-  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   modelProfile KeyModelProfile? @relation(fields: [modelProfileId], references: [id], onDelete: SetNull)
   modelChain  ApiKeyModelChain[]
   pricing     ApiKeyPricing[]
   usageLogs   UsageLog[]
   topUps      ApiKeyTopUp[]
+  agentApiKeys AgentApiKey[]
 
   @@index([userId])
+  @@index([organizationId])
   @@index([keyHash])
   @@index([modelProfileId])
   @@map("api_keys")
@@ -344,12 +522,114 @@ model GlobalFallbackChain {
   @@map("global_fallback_chains")
 }
 
+model TokenCostSnapshot {
+  id                String    @id @default(cuid())
+  provider          String
+  model             String
+  inputPrice        Decimal   @map("input_price") @db.Decimal(20, 10)
+  outputPrice       Decimal   @map("output_price") @db.Decimal(20, 10)
+  cachedInputPrice  Decimal?  @map("cached_input_price") @db.Decimal(20, 10)
+  cachedOutputPrice Decimal?  @map("cached_output_price") @db.Decimal(20, 10)
+  effectiveFrom     DateTime  @map("effective_from")
+  effectiveTo       DateTime? @map("effective_to")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  usageLogs UsageLog[]
+
+  @@unique([provider, model, effectiveFrom])
+  @@index([provider, model, effectiveFrom])
+  @@map("token_cost_snapshots")
+}
+
+model EncryptedSecret {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  toolInstanceId String?  @map("tool_instance_id")
+  key            String
+  ciphertext     String   @db.Text
+  iv             String
+  tag            String
+  rotatedAt      DateTime? @map("rotated_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  providerAccount ProviderAccount?
+  toolInstance    ToolInstance?
+  integrationAccount IntegrationAccount?
+
+  @@index([organizationId])
+  @@index([toolInstanceId])
+  @@map("encrypted_secrets")
+}
+
+model ProviderAccount {
+  id             String                @id @default(cuid())
+  organizationId String?               @map("organization_id")
+  provider       AIProvider
+  name           String
+  isDefault      Boolean               @default(false) @map("is_default")
+  status         ProviderAccountStatus @default(ACTIVE)
+  baseUrl        String?               @map("base_url")
+  apiKeySecretId String?               @unique @map("api_key_secret_id")
+  metadata       Json                  @default("{}")
+  createdAt      DateTime              @default(now()) @map("created_at")
+  updatedAt      DateTime              @updatedAt @map("updated_at")
+
+  organization      Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  apiKeySecret      EncryptedSecret?  @relation(fields: [apiKeySecretId], references: [id], onDelete: SetNull)
+  embeddingProfiles EmbeddingProfile[]
+
+  @@index([organizationId, provider])
+  @@map("provider_accounts")
+}
+
+model EmbeddingProfile {
+  id                String   @id @default(cuid())
+  organizationId    String?  @map("organization_id")
+  providerAccountId String?  @map("provider_account_id")
+  name              String
+  model             String
+  dimensions        Int      @default(3072)
+  provider          String   @default("openrouter")
+  metric            String   @default("cosine")
+  isDefault         Boolean  @default(false) @map("is_default")
+  isActive          Boolean  @default(true) @map("is_active")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  organization    Organization?    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  providerAccount ProviderAccount? @relation(fields: [providerAccountId], references: [id], onDelete: SetNull)
+  embeddings      KnowledgeEmbedding[]
+  knowledgeBases  KnowledgeBase[]
+  memoryEmbeddings MemoryEmbedding[]
+
+  @@index([organizationId])
+  @@map("embedding_profiles")
+}
+
+model KnowledgeEmbedding {
+  id         String   @id @default(cuid())
+  chunkId    String   @map("chunk_id")
+  profileId  String   @map("profile_id")
+  dimensions Int
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  chunk   KnowledgeChunk   @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+  profile EmbeddingProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([chunkId, profileId])
+  @@index([profileId])
+  @@index([chunkId])
+  @@map("knowledge_embeddings")
+}
+
 model UsageLog {
   id              String        @id @default(cuid())
   userId          String        @map("user_id")
   apiKeyId        String?       @map("api_key_id")
   agentId         String?       @map("agent_id")
   modelId         String?       @map("model_id")
+  tokenCostSnapshotId String?   @map("token_cost_snapshot_id")
   modelUsed       String        @map("model_used")
   profileSlug     String?       @map("profile_slug")
   inputTokens     Int           @default(0) @map("input_tokens")
@@ -357,6 +637,7 @@ model UsageLog {
   totalTokens     Int           @default(0) @map("total_tokens")
   realCost        Decimal       @default(0) @map("real_cost") @db.Decimal(12, 6)
   userCost        Decimal       @default(0) @map("user_cost") @db.Decimal(12, 6)
+  costUsd         Decimal?      @map("cost_usd") @db.Decimal(12, 6)
   margin          Decimal       @default(0) @db.Decimal(12, 6)
   responseTimeMs  Int           @default(0) @map("response_time_ms")
   status          RequestStatus @default(SUCCESS)
@@ -366,15 +647,17 @@ model UsageLog {
   ipAddress       String?       @map("ip_address")
   createdAt       DateTime      @default(now()) @map("created_at")
 
-  user   User    @relation(fields: [userId], references: [id])
-  apiKey ApiKey? @relation(fields: [apiKeyId], references: [id])
-  agent  Agent?  @relation(fields: [agentId], references: [id])
-  model  Model?  @relation(fields: [modelId], references: [id])
+  user              User               @relation(fields: [userId], references: [id])
+  apiKey            ApiKey?            @relation(fields: [apiKeyId], references: [id])
+  agent             Agent?             @relation(fields: [agentId], references: [id])
+  model             Model?             @relation(fields: [modelId], references: [id])
+  tokenCostSnapshot TokenCostSnapshot? @relation(fields: [tokenCostSnapshotId], references: [id])
 
   @@index([userId, createdAt])
   @@index([apiKeyId, createdAt])
   @@index([modelId, createdAt])
   @@index([agentId, createdAt])
+  @@index([tokenCostSnapshotId])
   @@index([createdAt])
   @@map("usage_logs")
 }
@@ -404,4 +687,1373 @@ model SystemSetting {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("system_settings")
+}
+
+model AgentTemplate {
+  id                   String    @id @default(cuid())
+  name                 String
+  slug                 String    @unique
+  description          String?
+  agentType            AgentType @map("agent_type")
+  isPublic             Boolean   @default(true) @map("is_public")
+  isMarketplace        Boolean   @default(false) @map("is_marketplace")
+  authorOrganizationId String?   @map("author_organization_id")
+  defaultPrompt        String    @map("default_prompt") @db.Text
+  defaultSettings      Json      @default("{}") @map("default_settings")
+  installCount         Int       @default(0) @map("install_count")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  authorOrganization Organization? @relation("AuthorOrganization", fields: [authorOrganizationId], references: [id], onDelete: SetNull)
+  keyAgents          KeyAgent[]
+
+  @@index([agentType])
+  @@index([isPublic, isMarketplace])
+  @@map("agent_templates")
+}
+
+model KeyAgent {
+  id             String      @id @default(cuid())
+  organizationId String      @map("organization_id")
+  templateId     String?     @map("template_id")
+  name           String
+  slug           String
+  description    String?
+  agentType      AgentType   @default(ASSISTANT) @map("agent_type")
+  status         AgentStatus @default(DRAFT)
+  systemPrompt   String      @map("system_prompt") @db.Text
+  settings       Json        @default("{}")
+  createdBy      String      @map("created_by")
+  updatedBy      String?     @map("updated_by")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  template     AgentTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  creator      User           @relation("KeyAgentCreatedBy", fields: [createdBy], references: [id])
+  updater      User?          @relation("KeyAgentUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+  agentApiKeys AgentApiKey[]
+  variables    AgentVariable[]
+  knowledgeBindings AssistantKnowledgeBinding[]
+  retrievalLogs   RetrievalLog[]
+  toolBindings    AssistantToolBinding[]
+  integrationChannels AssistantIntegrationChannel[]
+  conversations   Conversation[]
+  toolExecutionLogs ToolExecutionLog[]
+  crmLeadsSource  CrmLead[]
+  crmDealsSource  CrmDeal[]
+  crmTasksSource  CrmTask[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId, agentType])
+  @@index([organizationId, status])
+  @@map("key_agents")
+}
+
+model AgentApiKey {
+  id           String                 @id @default(cuid())
+  keyAgentId   String                 @map("key_agent_id")
+  apiKeyId     String                 @map("api_key_id")
+  name         String
+  environment  AgentApiKeyEnvironment @default(PRODUCTION)
+  scopes       AgentApiKeyScope[]     @default([CHAT, TOOLS_INVOKE, KB_READ, MEMORY_READ, MEMORY_WRITE])
+  keyHash      String                 @unique @map("key_hash")
+  keyPrefix    String                 @map("key_prefix")
+  keyEncrypted String?                @map("key_encrypted")
+  status       ApiKeyStatus           @default(ACTIVE)
+  allowedIps   String[]               @default([]) @map("allowed_ips")
+  expiresAt    DateTime?              @map("expires_at")
+  revokedAt    DateTime?              @map("revoked_at")
+  lastUsedAt   DateTime?              @map("last_used_at")
+  createdAt    DateTime               @default(now()) @map("created_at")
+  updatedAt    DateTime               @updatedAt @map("updated_at")
+
+  keyAgent KeyAgent @relation(fields: [keyAgentId], references: [id], onDelete: Cascade)
+  apiKey   ApiKey   @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+
+  @@index([keyAgentId])
+  @@index([apiKeyId])
+  @@map("agent_api_keys")
+}
+
+model AgentVariable {
+  id         String   @id @default(cuid())
+  keyAgentId String   @map("key_agent_id")
+  key        String
+  value      String   @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  keyAgent KeyAgent @relation(fields: [keyAgentId], references: [id], onDelete: Cascade)
+
+  @@unique([keyAgentId, key])
+  @@index([keyAgentId])
+  @@map("agent_variables")
+}
+
+// ─── Stage 2A: Knowledge Base Foundation ─────────────────────────────────────
+
+enum KnowledgeBaseStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum KnowledgeSourceType {
+  URL
+  SITEMAP
+  DOMAIN
+  RSS
+  FILE
+  API
+}
+
+enum CrawlStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  FAILED
+  BLOCKED
+}
+
+enum ParserMode {
+  STANDARD
+  AGGRESSIVE
+  HEADLESS_ONLY
+  MARKETPLACE_HARD
+  DOCUMENT_FIRST
+  LEGAL_FAST
+  LEGAL_DEEP
+}
+
+enum KnowledgeDocumentFormat {
+  PDF
+  DOCX
+  TXT
+  MD
+  HTML
+  URL
+  ZIP
+  MANUAL
+}
+
+enum KnowledgeDocumentStatus {
+  PENDING
+  PROCESSING
+  READY
+  SKIPPED_QUALITY
+  FAILED
+}
+
+enum KnowledgeEmbeddingStatus {
+  PENDING
+  CHUNKING
+  EMBEDDING
+  INDEXED
+  FAILED
+}
+
+enum ChunkStrategy {
+  FIXED
+  PARAGRAPH
+  SECTION
+  LEGAL_ARTICLE
+  MARKDOWN
+}
+
+model KnowledgeBase {
+  id                   String              @id @default(cuid())
+  organizationId       String              @map("organization_id")
+  createdBy            String              @map("created_by")
+  name                 String
+  slug                 String
+  description          String?
+  status               KnowledgeBaseStatus @default(DRAFT)
+  embeddingProfileId   String?             @map("embedding_profile_id")
+  stats                Json                @default("{}")
+  settings             Json                @default("{}")
+  createdAt            DateTime            @default(now()) @map("created_at")
+  updatedAt            DateTime            @updatedAt @map("updated_at")
+
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  creator          User              @relation("KnowledgeBaseCreatedBy", fields: [createdBy], references: [id])
+  embeddingProfile EmbeddingProfile? @relation(fields: [embeddingProfileId], references: [id], onDelete: SetNull)
+  sources          KnowledgeSource[]
+  documents        KnowledgeDocument[]
+  categories       KnowledgeCategory[]
+  topics           KnowledgeTopic[]
+  tags             KnowledgeTag[]
+  jobs             KnowledgeJob[]
+  chunks           KnowledgeChunk[]
+  assistantBindings AssistantKnowledgeBinding[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId, status])
+  @@map("knowledge_bases")
+}
+
+model KnowledgeSource {
+  id              String              @id @default(cuid())
+  organizationId  String              @map("organization_id")
+  knowledgeBaseId String              @map("knowledge_base_id")
+  type            KnowledgeSourceType
+  name            String?
+  url             String?
+  domain          String?
+  sitemapUrl      String?             @map("sitemap_url")
+  parserMode      ParserMode?         @map("parser_mode")
+  crawlStatus     CrawlStatus         @default(PENDING) @map("crawl_status")
+  lastParsedAt    DateTime?           @map("last_parsed_at")
+  successCount    Int                 @default(0) @map("success_count")
+  failureCount    Int                 @default(0) @map("failure_count")
+  successRate     Float?              @map("success_rate")
+  qualityScore    Float?              @map("quality_score")
+  lastError       String?             @map("last_error") @db.Text
+  metadata        Json                @default("{}")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  organization  Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  knowledgeBase KnowledgeBase       @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  documents     KnowledgeDocument[]
+  jobs          KnowledgeJob[]
+
+  @@index([knowledgeBaseId, crawlStatus])
+  @@index([organizationId])
+  @@index([domain])
+  @@map("knowledge_sources")
+}
+
+model KnowledgeDocument {
+  id                String                  @id @default(cuid())
+  organizationId    String                  @map("organization_id")
+  knowledgeBaseId   String                  @map("knowledge_base_id")
+  knowledgeSourceId String?                 @map("knowledge_source_id")
+  categoryId        String?                 @map("category_id")
+  topicId           String?                 @map("topic_id")
+  title             String?
+  format            KnowledgeDocumentFormat
+  sourceUrl         String?                 @map("source_url")
+  status            KnowledgeDocumentStatus @default(PENDING)
+  currentVersion    Int                     @default(0) @map("current_version")
+  rawS3Key          String?                 @map("raw_s3_key")
+  processedS3Key    String?                 @map("processed_s3_key")
+  parserJobId       String?                 @map("parser_job_id")
+  okContent         Boolean?                @map("ok_content")
+  contentValidation Json?                   @map("content_validation")
+  parserChars       Int?                    @map("parser_chars")
+  parserWarnings    Json?                   @map("parser_warnings")
+  chunkCount        Int                     @default(0) @map("chunk_count")
+  embeddingStatus   KnowledgeEmbeddingStatus @default(PENDING) @map("embedding_status")
+  metadata          Json                    @default("{}")
+  createdAt         DateTime                @default(now()) @map("created_at")
+  updatedAt         DateTime                @updatedAt @map("updated_at")
+
+  organization    Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  knowledgeBase   KnowledgeBase             @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  knowledgeSource KnowledgeSource?          @relation(fields: [knowledgeSourceId], references: [id], onDelete: SetNull)
+  category        KnowledgeCategory?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  topic           KnowledgeTopic?           @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  versions        KnowledgeDocumentVersion[]
+  tags            KnowledgeDocumentTag[]
+  jobs            KnowledgeJob[]
+  chunks          KnowledgeChunk[]
+
+  @@index([knowledgeBaseId, status])
+  @@index([organizationId])
+  @@index([knowledgeSourceId])
+  @@map("knowledge_documents")
+}
+
+model KnowledgeDocumentVersion {
+  id         String   @id @default(cuid())
+  documentId String   @map("document_id")
+  version    Int
+  changeNote String?  @map("change_note")
+  s3Key      String   @map("s3_key")
+  charCount  Int      @default(0) @map("char_count")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  document KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  chunks   KnowledgeChunk[]
+
+  @@unique([documentId, version])
+  @@map("knowledge_document_versions")
+}
+
+model KnowledgeCategory {
+  id              String   @id @default(cuid())
+  organizationId  String   @map("organization_id")
+  knowledgeBaseId String   @map("knowledge_base_id")
+  parentId        String?  @map("parent_id")
+  name            String
+  slug            String
+  description     String?  @db.Text
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  organization  Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  knowledgeBase KnowledgeBase       @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  parent        KnowledgeCategory?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children      KnowledgeCategory[] @relation("CategoryTree")
+  topics        KnowledgeTopic[]
+  documents     KnowledgeDocument[]
+
+  @@unique([knowledgeBaseId, slug])
+  @@index([organizationId])
+  @@index([parentId])
+  @@map("knowledge_categories")
+}
+
+model KnowledgeTopic {
+  id              String   @id @default(cuid())
+  organizationId  String   @map("organization_id")
+  knowledgeBaseId String   @map("knowledge_base_id")
+  categoryId      String   @map("category_id")
+  name            String
+  slug            String
+  description     String?  @db.Text
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  organization  Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  knowledgeBase KnowledgeBase     @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  category      KnowledgeCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  documents     KnowledgeDocument[]
+
+  @@unique([knowledgeBaseId, slug])
+  @@index([categoryId])
+  @@map("knowledge_topics")
+}
+
+model KnowledgeTag {
+  id              String   @id @default(cuid())
+  organizationId  String   @map("organization_id")
+  knowledgeBaseId String   @map("knowledge_base_id")
+  name            String
+  slug            String
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  organization  Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  knowledgeBase KnowledgeBase          @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  documents     KnowledgeDocumentTag[]
+
+  @@unique([knowledgeBaseId, slug])
+  @@map("knowledge_tags")
+}
+
+model KnowledgeDocumentTag {
+  documentId String @map("document_id")
+  tagId      String @map("tag_id")
+
+  document KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  tag      KnowledgeTag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([documentId, tagId])
+  @@map("knowledge_document_tags")
+}
+
+// ─── Stage 2B: Ingestion Pipeline ────────────────────────────────────────────
+
+enum KnowledgeJobType {
+  INGEST_URL
+  EXPAND_SITEMAP
+  EXPAND_DOMAIN
+  DOCUMENT_PROCESS
+  ZIP_EXTRACT
+  REPROCESS
+  CHUNK
+  EMBED
+  REEMBED
+}
+
+enum KnowledgeJobStatus {
+  QUEUED
+  RUNNING
+  SUCCESS
+  FAILED
+  SKIPPED
+  CANCELLED
+}
+
+model KnowledgeJob {
+  id                  String               @id @default(cuid())
+  organizationId      String               @map("organization_id")
+  knowledgeBaseId     String               @map("knowledge_base_id")
+  knowledgeSourceId   String?              @map("knowledge_source_id")
+  knowledgeDocumentId String?              @map("knowledge_document_id")
+  parentJobId         String?              @map("parent_job_id")
+  type                KnowledgeJobType
+  status              KnowledgeJobStatus   @default(QUEUED)
+  progress            Int                  @default(0)
+  queueName           String?              @map("queue_name")
+  bullJobId           String?              @map("bull_job_id")
+  error               String?              @db.Text
+  metadata            Json                 @default("{}")
+  startedAt           DateTime?            @map("started_at")
+  finishedAt          DateTime?            @map("finished_at")
+  createdAt           DateTime             @default(now()) @map("created_at")
+  updatedAt           DateTime             @updatedAt @map("updated_at")
+
+  organization      Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  knowledgeBase     KnowledgeBase     @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  knowledgeSource   KnowledgeSource?  @relation(fields: [knowledgeSourceId], references: [id], onDelete: SetNull)
+  knowledgeDocument KnowledgeDocument? @relation(fields: [knowledgeDocumentId], references: [id], onDelete: SetNull)
+  parentJob         KnowledgeJob?     @relation("JobTree", fields: [parentJobId], references: [id], onDelete: SetNull)
+  childJobs         KnowledgeJob[]    @relation("JobTree")
+
+  @@index([organizationId, status])
+  @@index([knowledgeBaseId, createdAt])
+  @@index([knowledgeSourceId])
+  @@index([status, createdAt])
+  @@map("knowledge_jobs")
+}
+
+model DomainProfile {
+  id                  String      @id @default(cuid())
+  domain              String      @unique
+  totalRequests       Int         @default(0) @map("total_requests")
+  successfulParses    Int         @default(0) @map("successful_parses")
+  failedParses        Int         @default(0) @map("failed_parses")
+  successRate         Float?      @map("success_rate")
+  averageChars        Int?        @map("average_chars")
+  averageQualityScore Float?      @map("average_quality_score")
+  recommendedMode     ParserMode? @map("recommended_mode")
+  antiBotDetected     Boolean     @default(false) @map("anti_bot_detected")
+  captchaDetected     Boolean     @default(false) @map("captcha_detected")
+  lastParsedAt        DateTime?   @map("last_parsed_at")
+  metadata            Json        @default("{}")
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
+
+  @@map("domain_profiles")
+}
+
+// ─── Stage 2C: Chunking & Embeddings ─────────────────────────────────────────
+
+model KnowledgeChunk {
+  id              String   @id @default(cuid())
+  organizationId  String   @map("organization_id")
+  knowledgeBaseId String   @map("knowledge_base_id")
+  documentId      String   @map("document_id")
+  versionId       String   @map("version_id")
+  chunkIndex      Int      @map("chunk_index")
+  content         String   @db.Text
+  tokenCount      Int      @default(0) @map("token_count")
+  charCount       Int      @default(0) @map("char_count")
+  metadata        Json     @default("{}")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  organization  Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  knowledgeBase KnowledgeBase            @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  document      KnowledgeDocument        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  version       KnowledgeDocumentVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  embeddings    KnowledgeEmbedding[]
+
+  @@unique([documentId, versionId, chunkIndex])
+  @@index([knowledgeBaseId])
+  @@index([organizationId])
+  @@index([documentId])
+  @@map("knowledge_chunks")
+}
+
+// ─── Stage 3: Assistant Knowledge Binding + Retrieval ────────────────────────
+
+enum AssistantSearchMode {
+  KEYWORD
+  VECTOR
+  HYBRID
+}
+
+model AssistantKnowledgeBinding {
+  id              String              @id @default(cuid())
+  organizationId  String              @map("organization_id")
+  assistantId     String              @map("assistant_id")
+  knowledgeBaseId String              @map("knowledge_base_id")
+  enabled         Boolean             @default(true)
+  priority        Int                 @default(0)
+  maxChunks       Int                 @default(5) @map("max_chunks")
+  maxTokens       Int                 @default(2000) @map("max_tokens")
+  searchMode      AssistantSearchMode @default(HYBRID) @map("search_mode")
+  keywordWeight   Float               @default(0.3) @map("keyword_weight")
+  vectorWeight    Float               @default(0.7) @map("vector_weight")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assistant     KeyAgent      @relation(fields: [assistantId], references: [id], onDelete: Cascade)
+  knowledgeBase KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+
+  @@unique([assistantId, knowledgeBaseId])
+  @@index([assistantId, enabled, priority])
+  @@index([organizationId])
+  @@map("assistant_knowledge_bindings")
+}
+
+model RetrievalLog {
+  id              String               @id @default(cuid())
+  organizationId  String               @map("organization_id")
+  assistantId     String               @map("assistant_id")
+  knowledgeBaseId String?              @map("knowledge_base_id")
+  query           String               @db.Text
+  searchMode      AssistantSearchMode  @map("search_mode")
+  chunksFound     Int                  @default(0) @map("chunks_found")
+  chunksUsed      Int                  @default(0) @map("chunks_used")
+  tokensUsed      Int                  @default(0) @map("tokens_used")
+  latencyMs       Int                  @default(0) @map("latency_ms")
+  metadata        Json                 @default("{}")
+  createdAt       DateTime             @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assistant    KeyAgent     @relation(fields: [assistantId], references: [id], onDelete: Cascade)
+
+  @@index([assistantId, createdAt])
+  @@index([organizationId, createdAt])
+  @@map("retrieval_logs")
+}
+
+// ─── Stage 4: Tool Registry Platform ─────────────────────────────────────────
+
+enum ToolProviderType {
+  INTERNAL
+  WEBHOOK
+  REST_API
+  GRAPHQL
+  MCP
+}
+
+enum ToolInstanceStatus {
+  ACTIVE
+  INACTIVE
+  ERROR
+}
+
+enum ToolExecutionStatus {
+  SUCCESS
+  FAILED
+  TIMEOUT
+}
+
+model ToolProvider {
+  id           String           @id @default(cuid())
+  slug         String           @unique
+  name         String
+  providerType ToolProviderType @map("provider_type")
+  description  String?
+  configSchema Json             @default("{}") @map("config_schema")
+  endpoint     String?
+  isActive     Boolean          @default(true) @map("is_active")
+  metadata     Json             @default("{}")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  definitions ToolDefinition[]
+
+  @@map("tool_providers")
+}
+
+model ToolDefinition {
+  id             String           @id @default(cuid())
+  providerId     String           @map("provider_id")
+  name           String
+  slug           String           @unique
+  description    String?          @db.Text
+  providerType   ToolProviderType @map("provider_type")
+  inputSchema    Json             @default("{}") @map("input_schema")
+  outputSchema   Json             @default("{}") @map("output_schema")
+  settingsSchema Json             @default("{}") @map("settings_schema")
+  isSystem       Boolean          @default(true) @map("is_system")
+  isPublic       Boolean          @default(true) @map("is_public")
+  isActive       Boolean          @default(true) @map("is_active")
+  metadata       Json             @default("{}")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  provider  ToolProvider   @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  instances ToolInstance[]
+
+  @@index([providerId])
+  @@index([providerType])
+  @@map("tool_definitions")
+}
+
+model ToolInstance {
+  id               String               @id @default(cuid())
+  organizationId   String               @map("organization_id")
+  toolDefinitionId String               @map("tool_definition_id")
+  name             String
+  status           ToolInstanceStatus   @default(ACTIVE)
+  settings         Json                 @default("{}")
+  secretId         String?              @unique @map("secret_id")
+  lastTestedAt     DateTime?            @map("last_tested_at")
+  lastTestStatus   ToolExecutionStatus? @map("last_test_status")
+  createdAt        DateTime             @default(now()) @map("created_at")
+  updatedAt        DateTime             @updatedAt @map("updated_at")
+
+  organization  Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  definition    ToolDefinition         @relation(fields: [toolDefinitionId], references: [id], onDelete: Restrict)
+  secret        EncryptedSecret?       @relation(fields: [secretId], references: [id], onDelete: SetNull)
+  bindings      AssistantToolBinding[]
+  executionLogs ToolExecutionLog[]
+
+  @@index([organizationId])
+  @@index([toolDefinitionId])
+  @@index([organizationId, status])
+  @@map("tool_instances")
+}
+
+model AssistantToolBinding {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  assistantId    String   @map("assistant_id")
+  toolInstanceId String   @map("tool_instance_id")
+  enabled        Boolean  @default(true)
+  priority       Int      @default(0)
+  allowedActions Json     @default("[]") @map("allowed_actions")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assistant    KeyAgent     @relation(fields: [assistantId], references: [id], onDelete: Cascade)
+  toolInstance ToolInstance @relation(fields: [toolInstanceId], references: [id], onDelete: Cascade)
+
+  @@unique([assistantId, toolInstanceId])
+  @@index([assistantId, enabled, priority])
+  @@index([organizationId])
+  @@map("assistant_tool_bindings")
+}
+
+model ToolExecutionLog {
+  id             String              @id @default(cuid())
+  organizationId String              @map("organization_id")
+  assistantId    String?             @map("assistant_id")
+  toolInstanceId String              @map("tool_instance_id")
+  input          Json                @default("{}")
+  output         Json                @default("{}")
+  status         ToolExecutionStatus
+  latencyMs      Int                 @default(0) @map("latency_ms")
+  error          String?             @db.Text
+  createdAt      DateTime            @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assistant    KeyAgent?    @relation(fields: [assistantId], references: [id], onDelete: SetNull)
+  toolInstance ToolInstance @relation(fields: [toolInstanceId], references: [id], onDelete: Cascade)
+
+  @@index([toolInstanceId, createdAt])
+  @@index([assistantId, createdAt])
+  @@index([organizationId, createdAt])
+  @@map("tool_execution_logs")
+}
+
+// ─── Stage 5: Internal CRM Platform ──────────────────────────────────────────
+
+enum CrmWorkspaceStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum CrmPipelineStage {
+  NEW
+  CONTACTED
+  QUALIFIED
+  PROPOSAL
+  WON
+  LOST
+}
+
+enum CrmClientStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum CrmTaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum CrmTaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum CrmEntityType {
+  CLIENT
+  LEAD
+  DEAL
+  TASK
+}
+
+enum CrmActivityAction {
+  CREATED
+  UPDATED
+  STATUS_CHANGED
+  NOTE_ADDED
+  TOOL_EXECUTED
+  COMMENT
+}
+
+model CrmWorkspace {
+  id             String             @id @default(cuid())
+  organizationId String             @unique @map("organization_id")
+  name           String             @default("CRM")
+  settings       Json               @default("{}")
+  status         CrmWorkspaceStatus @default(ACTIVE)
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  clients      CrmClient[]
+  leads        CrmLead[]
+  deals        CrmDeal[]
+  tasks        CrmTask[]
+  notes        CrmNote[]
+  activities   CrmActivity[]
+
+  @@map("crm_workspaces")
+}
+
+model CrmClient {
+  id             String          @id @default(cuid())
+  organizationId String          @map("organization_id")
+  workspaceId    String          @map("workspace_id")
+  name           String
+  company        String?
+  email          String?
+  phone          String?
+  website        String?
+  tags           String[]        @default([])
+  status         CrmClientStatus @default(ACTIVE)
+  ownerId        String?         @map("owner_id")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    CrmWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  owner        User?        @relation("CrmClientOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  deals        CrmDeal[]
+
+  @@index([organizationId])
+  @@index([workspaceId])
+  @@index([organizationId, status])
+  @@map("crm_clients")
+}
+
+model CrmLead {
+  id             String           @id @default(cuid())
+  organizationId String           @map("organization_id")
+  workspaceId    String           @map("workspace_id")
+  name           String
+  email          String?
+  phone          String?
+  source         String?
+  status         CrmPipelineStage @default(NEW)
+  score          Int              @default(0)
+  assignedToId   String?          @map("assigned_to_id")
+  sourceAgentId  String?          @map("source_agent_id")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    CrmWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  assignedTo   User?        @relation("CrmLeadAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  sourceAgent  KeyAgent?    @relation(fields: [sourceAgentId], references: [id], onDelete: SetNull)
+  deals        CrmDeal[]
+
+  @@index([organizationId])
+  @@index([workspaceId])
+  @@index([organizationId, status])
+  @@map("crm_leads")
+}
+
+model CrmDeal {
+  id             String           @id @default(cuid())
+  organizationId String           @map("organization_id")
+  workspaceId    String           @map("workspace_id")
+  name           String
+  amount         Decimal          @default(0) @db.Decimal(14, 2)
+  currency       String           @default("RUB")
+  status         CrmPipelineStage @default(NEW)
+  clientId       String?          @map("client_id")
+  leadId         String?          @map("lead_id")
+  sourceAgentId  String?          @map("source_agent_id")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    CrmWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  client       CrmClient?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  lead         CrmLead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  sourceAgent  KeyAgent?    @relation(fields: [sourceAgentId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([workspaceId])
+  @@index([organizationId, status])
+  @@map("crm_deals")
+}
+
+model CrmTask {
+  id             String          @id @default(cuid())
+  organizationId String          @map("organization_id")
+  workspaceId    String          @map("workspace_id")
+  title          String
+  description    String?         @db.Text
+  status         CrmTaskStatus   @default(TODO)
+  priority       CrmTaskPriority @default(MEDIUM)
+  dueDate        DateTime?       @map("due_date")
+  assignedToId   String?         @map("assigned_to_id")
+  sourceAgentId  String?         @map("source_agent_id")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    CrmWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  assignedTo   User?        @relation("CrmTaskAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  sourceAgent  KeyAgent?    @relation(fields: [sourceAgentId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([workspaceId])
+  @@index([organizationId, status])
+  @@map("crm_tasks")
+}
+
+model CrmNote {
+  id             String        @id @default(cuid())
+  organizationId String        @map("organization_id")
+  workspaceId    String        @map("workspace_id")
+  entityType     CrmEntityType @map("entity_type")
+  entityId       String        @map("entity_id")
+  content        String        @db.Text
+  createdById    String        @map("created_by_id")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    CrmWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy    User         @relation("CrmNoteAuthor", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([entityType, entityId])
+  @@map("crm_notes")
+}
+
+model CrmActivity {
+  id             String            @id @default(cuid())
+  organizationId String            @map("organization_id")
+  workspaceId    String            @map("workspace_id")
+  entityType     CrmEntityType     @map("entity_type")
+  entityId       String            @map("entity_id")
+  action         CrmActivityAction
+  metadata       Json              @default("{}")
+  createdById    String?           @map("created_by_id")
+  createdAt      DateTime          @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    CrmWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy    User?        @relation("CrmActivityAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([entityType, entityId, createdAt])
+  @@map("crm_activities")
+}
+
+// ─── Stage 6: Workflow Engine Platform ───────────────────────────────────────
+
+enum WorkflowStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum WorkflowTriggerType {
+  MANUAL
+  SCHEDULE
+  CRM_EVENT
+  KB_EVENT
+  TOOL_EVENT
+  WEBHOOK
+  INTEGRATION_EVENT
+}
+
+enum WorkflowStepType {
+  START
+  CONDITION
+  ASSISTANT
+  TOOL
+  CRM
+  WEBHOOK
+  WAIT
+  BRANCH
+  MEMORY_READ
+  MEMORY_WRITE
+  END
+}
+
+enum WorkflowExecutionStatus {
+  PENDING
+  RUNNING
+  WAITING
+  COMPLETED
+  FAILED
+  CANCELLED
+  DLQ
+}
+
+enum WorkflowStepExecutionStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+model Workflow {
+  id               String              @id @default(cuid())
+  organizationId   String              @map("organization_id")
+  name             String
+  description      String?             @db.Text
+  status           WorkflowStatus      @default(DRAFT)
+  triggerType      WorkflowTriggerType @map("trigger_type")
+  triggerConfig    Json                @default("{}") @map("trigger_config")
+  scheduleCron     String?             @map("schedule_cron")
+  scheduleTimezone String              @default("UTC") @map("schedule_timezone")
+  webhookToken     String?             @unique @map("webhook_token")
+  isActive         Boolean             @default(false) @map("is_active")
+  sourceTemplateId String?             @map("source_template_id")
+  currentVersionId String?             @unique @map("current_version_id")
+  createdById      String              @map("created_by_id")
+  updatedById      String?             @map("updated_by_id")
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
+
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy      User                @relation("WorkflowCreatedBy", fields: [createdById], references: [id])
+  updatedBy      User?               @relation("WorkflowUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  currentVersion WorkflowVersion?    @relation("WorkflowCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
+  sourceTemplate   WorkflowTemplate?   @relation(fields: [sourceTemplateId], references: [id], onDelete: SetNull)
+  versions       WorkflowVersion[]   @relation("WorkflowVersions")
+  executions     WorkflowExecution[]
+
+  @@index([organizationId])
+  @@index([organizationId, isActive])
+  @@index([triggerType])
+  @@index([sourceTemplateId])
+  @@map("workflows")
+}
+
+model WorkflowVersion {
+  id         String   @id @default(cuid())
+  workflowId String   @map("workflow_id")
+  version    Int
+  definition Json     @default("{}")
+  published  Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  workflow        Workflow         @relation("WorkflowVersions", fields: [workflowId], references: [id], onDelete: Cascade)
+  currentFor      Workflow?        @relation("WorkflowCurrentVersion")
+  steps           WorkflowStep[]
+  executions      WorkflowExecution[]
+
+  @@unique([workflowId, version])
+  @@index([workflowId])
+  @@map("workflow_versions")
+}
+
+model WorkflowStep {
+  id                String           @id @default(cuid())
+  workflowVersionId String           @map("workflow_version_id")
+  stepType          WorkflowStepType @map("step_type")
+  stepKey           String           @map("step_key")
+  configuration     Json             @default("{}")
+  position          Int              @default(0)
+
+  version       WorkflowVersion           @relation(fields: [workflowVersionId], references: [id], onDelete: Cascade)
+  executionLogs WorkflowExecutionLog[]
+
+  @@unique([workflowVersionId, stepKey])
+  @@index([workflowVersionId, position])
+  @@map("workflow_steps")
+}
+
+model WorkflowExecution {
+  id                String                  @id @default(cuid())
+  organizationId    String                  @map("organization_id")
+  workflowId        String                  @map("workflow_id")
+  workflowVersionId String                  @map("workflow_version_id")
+  status            WorkflowExecutionStatus @default(PENDING)
+  startedAt         DateTime?               @map("started_at")
+  finishedAt        DateTime?               @map("finished_at")
+  durationMs        Int                     @default(0) @map("duration_ms")
+  triggerData       Json                    @default("{}") @map("trigger_data")
+  checkpoint        Json                    @default("{}")
+  resumeAt          DateTime?               @map("resume_at")
+  sourceTemplateId  String?                 @map("source_template_id")
+  result            Json                    @default("{}")
+  error             String?                 @db.Text
+  attempt           Int                     @default(0)
+  createdAt         DateTime                @default(now()) @map("created_at")
+
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workflow     Workflow               @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  version      WorkflowVersion        @relation(fields: [workflowVersionId], references: [id], onDelete: Cascade)
+  logs         WorkflowExecutionLog[]
+
+  @@index([workflowId, createdAt])
+  @@index([organizationId, createdAt])
+  @@index([status])
+  @@index([organizationId, status])
+  @@index([resumeAt])
+  @@map("workflow_executions")
+}
+
+model WorkflowTemplateCategory {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String?  @db.Text
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  templates WorkflowTemplate[]
+
+  @@map("workflow_template_categories")
+}
+
+model WorkflowTemplate {
+  id             String              @id @default(cuid())
+  categoryId     String              @map("category_id")
+  slug           String              @unique
+  name           String
+  description    String?             @db.Text
+  triggerType    WorkflowTriggerType @map("trigger_type")
+  triggerConfig  Json                @default("{}") @map("trigger_config")
+  scheduleCron   String?             @map("schedule_cron")
+  steps          Json                @default("[]")
+  graph          Json                @default("{}")
+  usageCount     Int                 @default(0) @map("usage_count")
+  isActive       Boolean             @default(true) @map("is_active")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+
+  category   WorkflowTemplateCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  workflows  Workflow[]
+
+  @@index([categoryId])
+  @@index([triggerType])
+  @@map("workflow_templates")
+}
+
+model WorkflowExecutionLog {
+  id          String                      @id @default(cuid())
+  executionId String                      @map("execution_id")
+  stepId      String?                     @map("step_id")
+  status      WorkflowStepExecutionStatus
+  input       Json                        @default("{}")
+  output      Json                        @default("{}")
+  error       String?                     @db.Text
+  latencyMs   Int                         @default(0) @map("latency_ms")
+  createdAt   DateTime                    @default(now()) @map("created_at")
+
+  execution WorkflowExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  step      WorkflowStep?       @relation(fields: [stepId], references: [id], onDelete: SetNull)
+
+  @@index([executionId, createdAt])
+  @@map("workflow_execution_logs")
+}
+
+// ─── Stage 7: Enterprise Memory Platform ───────────────────────────────────
+
+enum MemoryProfileEntityType {
+  USER
+  ASSISTANT
+  ORGANIZATION
+  CLIENT
+  WORKFLOW
+}
+
+enum MemoryProfileStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum MemoryEntryType {
+  FACT
+  SUMMARY
+  NOTE
+  PREFERENCE
+  RULE
+  OBSERVATION
+}
+
+enum MemorySearchMode {
+  KEYWORD
+  VECTOR
+  HYBRID
+}
+
+model MemoryProfile {
+  id             String                  @id @default(cuid())
+  organizationId String                  @map("organization_id")
+  entityType     MemoryProfileEntityType @map("entity_type")
+  entityId       String                  @map("entity_id")
+  name           String
+  settings       Json                    @default("{}")
+  status         MemoryProfileStatus     @default(ACTIVE)
+  createdAt      DateTime                @default(now()) @map("created_at")
+  updatedAt      DateTime                @updatedAt @map("updated_at")
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entries      MemoryEntry[]
+  summaries    MemorySummary[]
+  searchLogs   MemorySearchLog[]
+
+  @@unique([organizationId, entityType, entityId])
+  @@index([organizationId, entityType])
+  @@map("memory_profiles")
+}
+
+model MemoryEntry {
+  id             String          @id @default(cuid())
+  organizationId String          @map("organization_id")
+  profileId      String          @map("profile_id")
+  content        String          @db.Text
+  entryType      MemoryEntryType @map("entry_type")
+  importance     Int             @default(5)
+  source         String?
+  metadata       Json            @default("{}")
+  charCount      Int             @default(0) @map("char_count")
+  createdAt      DateTime        @default(now()) @map("created_at")
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  profile      MemoryProfile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  embedding    MemoryEmbedding?
+
+  @@index([profileId, createdAt])
+  @@index([organizationId])
+  @@index([entryType])
+  @@map("memory_entries")
+}
+
+model MemoryEmbedding {
+  id         String   @id @default(cuid())
+  entryId    String   @unique @map("entry_id")
+  profileId  String   @map("profile_id")
+  dimensions Int
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  entry   MemoryEntry      @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  profile EmbeddingProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@map("memory_embeddings")
+}
+
+model MemorySummary {
+  id          String   @id @default(cuid())
+  profileId   String   @map("profile_id")
+  summary     String   @db.Text
+  period      String
+  tokensSaved Int      @default(0) @map("tokens_saved")
+  entryCount  Int      @default(0) @map("entry_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  profile MemoryProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, createdAt])
+  @@map("memory_summaries")
+}
+
+model MemorySearchLog {
+  id             String           @id @default(cuid())
+  organizationId String           @map("organization_id")
+  profileId      String?          @map("profile_id")
+  assistantId    String?          @map("assistant_id")
+  query          String           @db.Text
+  mode           MemorySearchMode @default(HYBRID)
+  results        Json             @default("[]")
+  resultCount    Int              @default(0) @map("result_count")
+  latencyMs      Int              @default(0) @map("latency_ms")
+  debug          Json             @default("{}")
+  createdAt      DateTime         @default(now()) @map("created_at")
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memoryProfile MemoryProfile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([profileId])
+  @@map("memory_search_logs")
+}
+
+// ─── Stage 8: External Integrations Platform ───────────────────────────────
+
+enum IntegrationProviderType {
+  TELEGRAM
+  MAX
+  EMAIL
+  WEBHOOK
+  BITRIX24
+  AMOCRM
+  GOOGLE
+  CUSTOM
+}
+
+enum IntegrationAccountStatus {
+  ACTIVE
+  INACTIVE
+  ERROR
+  PENDING
+}
+
+enum ConversationChannel {
+  TELEGRAM
+  MAX
+  EMAIL
+  WEBHOOK
+}
+
+enum ConversationStatus {
+  OPEN
+  CLOSED
+  ARCHIVED
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+  SYSTEM
+}
+
+enum IntegrationEventStatus {
+  PENDING
+  PROCESSED
+  FAILED
+}
+
+model IntegrationProvider {
+  id             String                  @id @default(cuid())
+  provider       IntegrationProviderType @unique
+  name           String
+  description    String?                 @db.Text
+  settingsSchema Json                    @default("{}") @map("settings_schema")
+  isActive       Boolean                 @default(true) @map("is_active")
+  createdAt      DateTime                @default(now()) @map("created_at")
+  updatedAt      DateTime                @updatedAt @map("updated_at")
+
+  accounts IntegrationAccount[]
+
+  @@map("integration_providers")
+}
+
+model IntegrationAccount {
+  id             String                   @id @default(cuid())
+  organizationId String                   @map("organization_id")
+  providerId     String                   @map("provider_id")
+  provider       IntegrationProviderType  @map("provider_enum")
+  name           String
+  status         IntegrationAccountStatus @default(PENDING)
+  settings       Json                     @default("{}")
+  secretId       String?                  @unique @map("secret_id")
+  webhookSecret  String?                  @map("webhook_secret")
+  lastSyncAt     DateTime?                @map("last_sync_at")
+  createdAt      DateTime                 @default(now()) @map("created_at")
+  updatedAt      DateTime                 @updatedAt @map("updated_at")
+
+  organization Organization                  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  providerRef  IntegrationProvider           @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  secret       EncryptedSecret?              @relation(fields: [secretId], references: [id], onDelete: SetNull)
+  channels     AssistantIntegrationChannel[]
+  conversations Conversation[]
+  events       IntegrationEvent[]
+
+  @@index([organizationId])
+  @@index([organizationId, provider])
+  @@index([providerId])
+  @@map("integration_accounts")
+}
+
+model AssistantIntegrationChannel {
+  id                   String   @id @default(cuid())
+  organizationId       String   @map("organization_id")
+  assistantId          String   @map("assistant_id")
+  integrationAccountId String   @map("integration_account_id")
+  enabled              Boolean  @default(true)
+  settings             Json     @default("{}")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  organization       Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assistant            KeyAgent             @relation(fields: [assistantId], references: [id], onDelete: Cascade)
+  integrationAccount IntegrationAccount @relation(fields: [integrationAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([assistantId, integrationAccountId])
+  @@index([organizationId])
+  @@index([assistantId])
+  @@map("assistant_integration_channels")
+}
+
+model Conversation {
+  id                   String              @id @default(cuid())
+  organizationId       String              @map("organization_id")
+  channel              ConversationChannel
+  externalId           String              @map("external_id")
+  assistantId          String?             @map("assistant_id")
+  integrationAccountId String?             @map("integration_account_id")
+  status               ConversationStatus  @default(OPEN)
+  lastMessageAt        DateTime?           @map("last_message_at")
+  metadata             Json                @default("{}")
+  createdAt            DateTime            @default(now()) @map("created_at")
+  updatedAt            DateTime            @updatedAt @map("updated_at")
+
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assistant          KeyAgent?           @relation(fields: [assistantId], references: [id], onDelete: SetNull)
+  integrationAccount IntegrationAccount? @relation(fields: [integrationAccountId], references: [id], onDelete: SetNull)
+  messages             Message[]
+
+  @@unique([organizationId, channel, externalId])
+  @@index([organizationId, lastMessageAt])
+  @@index([assistantId])
+  @@map("conversations")
+}
+
+model Message {
+  id             String           @id @default(cuid())
+  conversationId String           @map("conversation_id")
+  direction      MessageDirection
+  content        String           @db.Text
+  attachments    Json             @default("[]")
+  metadata       Json             @default("{}")
+  createdAt      DateTime         @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}
+
+model IntegrationEvent {
+  id             String                  @id @default(cuid())
+  organizationId String                  @map("organization_id")
+  provider       IntegrationProviderType
+  accountId      String                  @map("account_id")
+  eventType      String                  @map("event_type")
+  payload        Json                    @default("{}")
+  status         IntegrationEventStatus  @default(PENDING)
+  error          String?                 @db.Text
+  createdAt      DateTime                @default(now()) @map("created_at")
+  processedAt    DateTime?               @map("processed_at")
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  account        IntegrationAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@index([accountId, eventType])
+  @@index([status])
+  @@map("integration_events")
 }

@@ -7,9 +7,41 @@ import { ApiKeysPage } from '@/pages/api-keys';
 import { ModelsPage } from '@/pages/models';
 import { KeyModelProfilesPage } from '@/pages/key-model-profiles';
 import { AgentsPage } from '@/pages/agents';
+import { AssistantsListPage } from '@/pages/assistants';
+import { AssistantsCreatePage } from '@/pages/assistants/create';
+import { AssistantDetailPage } from '@/pages/assistants/detail';
+import { KnowledgeListPage } from '@/pages/knowledge';
+import { KnowledgeCreatePage } from '@/pages/knowledge/create';
+import { KnowledgeDetailPage } from '@/pages/knowledge/detail';
+import { KnowledgeJobsPage } from '@/pages/knowledge/jobs';
+import { ToolsLandingPage } from '@/pages/tools';
+import { ToolsCatalogPage } from '@/pages/tools/catalog';
+import { ToolsInstancesPage } from '@/pages/tools/instances';
+import { ToolDetailPage } from '@/pages/tools/detail';
+import { CrmOverviewPage } from '@/pages/crm';
+import { CrmLeadsPage } from '@/pages/crm/leads';
+import { CrmClientsPage } from '@/pages/crm/clients';
+import { CrmClientDetailPage } from '@/pages/crm/client-detail';
+import { CrmDealsPage } from '@/pages/crm/deals';
+import { CrmTasksPage } from '@/pages/crm/tasks';
+import { WorkflowsListPage } from '@/pages/workflows';
+import { WorkflowsCreatePage } from '@/pages/workflows/create';
+import { WorkflowDetailPage } from '@/pages/workflows/detail';
+import { WorkflowExecutionsPage } from '@/pages/workflows/executions';
+import { WorkflowTemplatesPage } from '@/pages/workflows/templates';
+import { MemoryOverviewPage } from '@/pages/memory';
+import { MemoryProfilesPage } from '@/pages/memory/profiles';
+import { MemoryProfileDetailPage } from '@/pages/memory/profile-detail';
+import { MemorySearchPage } from '@/pages/memory/search';
+import { IntegrationsOverviewPage } from '@/pages/integrations';
+import { IntegrationProviderPage } from '@/pages/integrations/provider';
+import { IntegrationAccountDetailPage } from '@/pages/integrations/account-detail';
+import { MessagesInboxPage } from '@/pages/messages';
+import { MessageDetailPage } from '@/pages/messages/detail';
 import { AnalyticsPage } from '@/pages/analytics';
 import { DocsPage } from '@/pages/docs';
 import { SettingsPage } from '@/pages/settings';
+import { AssistantTemplatesPage } from '@/pages/settings/assistant-templates';
 import {
   AdminDashboardPage,
   AdminUsersPage,
@@ -40,10 +72,42 @@ export default function App() {
             <Route path="keys" element={<ApiKeysPage />} />
             <Route path="key-models" element={<KeyModelProfilesPage />} />
             <Route path="models" element={<ModelsPage />} />
-            <Route path="agents" element={<AgentsPage />} />
+            <Route path="agents" element={<ProtectedAdmin><AgentsPage /></ProtectedAdmin>} />
+            <Route path="assistants" element={<AssistantsListPage />} />
+            <Route path="assistants/create" element={<AssistantsCreatePage />} />
+            <Route path="assistants/:id" element={<AssistantDetailPage />} />
+            <Route path="knowledge" element={<KnowledgeListPage />} />
+            <Route path="knowledge/jobs" element={<KnowledgeJobsPage />} />
+            <Route path="knowledge/create" element={<KnowledgeCreatePage />} />
+            <Route path="knowledge/:id" element={<KnowledgeDetailPage />} />
+            <Route path="tools" element={<ToolsLandingPage />} />
+            <Route path="tools/catalog" element={<ToolsCatalogPage />} />
+            <Route path="tools/instances" element={<ToolsInstancesPage />} />
+            <Route path="tools/:id" element={<ToolDetailPage />} />
+            <Route path="crm" element={<CrmOverviewPage />} />
+            <Route path="crm/leads" element={<CrmLeadsPage />} />
+            <Route path="crm/clients" element={<CrmClientsPage />} />
+            <Route path="crm/clients/:id" element={<CrmClientDetailPage />} />
+            <Route path="crm/deals" element={<CrmDealsPage />} />
+            <Route path="crm/tasks" element={<CrmTasksPage />} />
+            <Route path="workflows" element={<WorkflowsListPage />} />
+            <Route path="workflows/create" element={<WorkflowsCreatePage />} />
+            <Route path="workflows/templates" element={<WorkflowTemplatesPage />} />
+            <Route path="workflows/executions" element={<WorkflowExecutionsPage />} />
+            <Route path="workflows/:id" element={<WorkflowDetailPage />} />
+            <Route path="memory" element={<MemoryOverviewPage />} />
+            <Route path="memory/profiles" element={<MemoryProfilesPage />} />
+            <Route path="memory/profiles/:id" element={<MemoryProfileDetailPage />} />
+            <Route path="memory/search" element={<MemorySearchPage />} />
+            <Route path="integrations" element={<IntegrationsOverviewPage />} />
+            <Route path="integrations/accounts/:id" element={<IntegrationAccountDetailPage />} />
+            <Route path="integrations/:provider" element={<IntegrationProviderPage />} />
+            <Route path="messages" element={<MessagesInboxPage />} />
+            <Route path="messages/:id" element={<MessageDetailPage />} />
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="docs" element={<DocsPage />} />
             <Route path="settings" element={<SettingsPage />} />
+            <Route path="settings/assistant-templates" element={<AssistantTemplatesPage />} />
             <Route path="admin" element={<ProtectedAdmin><AdminDashboardPage /></ProtectedAdmin>} />
             <Route path="admin/users" element={<ProtectedAdmin><AdminUsersPage /></ProtectedAdmin>} />
             <Route path="admin/pricing" element={<ProtectedAdmin><AdminPricingPage /></ProtectedAdmin>} />

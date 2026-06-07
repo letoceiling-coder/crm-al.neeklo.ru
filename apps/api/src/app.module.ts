@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
@@ -15,6 +15,25 @@ import { OpenRouterModule } from './openrouter/openrouter.module';
 import { AuditModule } from './audit/audit.module';
 import { CurrencyModule } from './currency/currency.module';
 import { GlobalAuthGuard } from './common/guards/global-auth.guard';
+import { TenantModule } from './tenant/tenant.module';
+import { OrganizationsModule } from './organizations/organizations.module';
+import { SecretsModule } from './secrets/secrets.module';
+import { ProviderAccountsModule } from './provider-accounts/provider-accounts.module';
+import { TokenCostModule } from './token-cost/token-cost.module';
+import { QueueModule } from './queue/queue.module';
+import { ParserClientModule } from './parser-client/parser-client.module';
+import { StorageModule } from './storage/storage.module';
+import { HealthModule } from './health/health.module';
+import { EmbeddingModule } from './embedding/embedding.module';
+import { AssistantsModule } from './assistants/assistants.module';
+import { KnowledgeModule } from './knowledge/knowledge.module';
+import { ToolsModule } from './tools/tools.module';
+import { CrmModule } from './crm/crm.module';
+import { WorkflowsModule } from './workflows/workflows.module';
+import { MemoryModule } from './memory/memory.module';
+import { IntegrationsModule } from './integrations/integrations.module';
+import { TenantGuard } from './tenant/tenant.guard';
+import { TenantInterceptor } from './tenant/tenant.interceptor';
 
 @Module({
   imports: [
@@ -22,6 +41,23 @@ import { GlobalAuthGuard } from './common/guards/global-auth.guard';
     CurrencyModule,
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
     PrismaModule,
+    TenantModule,
+    OrganizationsModule,
+    SecretsModule,
+    ProviderAccountsModule,
+    TokenCostModule,
+    QueueModule,
+    ParserClientModule,
+    StorageModule,
+    EmbeddingModule,
+    HealthModule,
+    AssistantsModule,
+    KnowledgeModule,
+    ToolsModule,
+    CrmModule,
+    WorkflowsModule,
+    MemoryModule,
+    IntegrationsModule,
     AuthModule,
     UsersModule,
     ApiKeysModule,
@@ -35,7 +71,9 @@ import { GlobalAuthGuard } from './common/guards/global-auth.guard';
   ],
   providers: [
     { provide: APP_GUARD, useClass: GlobalAuthGuard },
+    { provide: APP_GUARD, useClass: TenantGuard },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_INTERCEPTOR, useClass: TenantInterceptor },
   ],
 })
 export class AppModule {}

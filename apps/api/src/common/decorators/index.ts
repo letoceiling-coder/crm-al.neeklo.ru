@@ -8,3 +8,6 @@ export const IS_PUBLIC_KEY = 'isPublic';
 export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
 
 export const API_KEY_AUTH = 'apiKeyAuth';
+
+export * from './tenant-scoped.decorator';
+export * from './current-tenant.decorator';
