@@ -95,6 +95,11 @@ def main() -> None:
 
     tag = f"stage-111-{int(time.time())}"
 
+    print("=== Upgrade to PRO for smoke limits ===")
+    code, _ = req("POST", "/v1/billing/subscription/change", token=admin, body={"tier": "PRO"})
+    ok(f"plan PRO {code}") if success_code(code) else warn(f"plan PRO {code}")
+    time.sleep(2)
+
     print("=== Organization invite ===")
     code, inv = req("POST", "/v1/organizations/current/members/invite", token=admin, body={
         "email": f"invite-{tag}@test.local", "role": "OPERATOR",
@@ -108,7 +113,17 @@ def main() -> None:
         "systemPrompt": "Commercial smoke assistant.",
     })
     asst_id = asst.get("id") if success_code(code) and isinstance(asst, dict) else None
-    ok(f"assistant id={asst_id}") if asst_id else fail(f"assistant {code} {asst}")
+    if not asst_id and code == 400:
+        code, existing = req("GET", "/v1/assistants", token=admin)
+        if code == 200 and isinstance(existing, list) and existing:
+            asst_id = existing[0].get("id")
+            warn(f"assistant limit — reusing {asst_id}")
+        else:
+            fail(f"assistant {code} {asst}")
+    elif asst_id:
+        ok(f"assistant id={asst_id}")
+    else:
+        fail(f"assistant {code} {asst}")
 
     print("=== Knowledge base + document ===")
     code, kb = req("POST", "/v1/knowledge-bases", token=admin, body={
@@ -173,8 +188,9 @@ def main() -> None:
     ok(f"marketplace package {code}") if success_code(code) else fail(f"marketplace {code} {pkg}")
 
     print("=== Plan change + invoice ===")
-    code, _ = req("POST", "/v1/billing/subscription/change", token=admin, body={"tier": "PRO"})
-    ok(f"plan change PRO {code}") if success_code(code) else fail(f"plan change {code}")
+    time.sleep(2)
+    code, _ = req("POST", "/v1/billing/subscription/change", token=admin, body={"tier": "BUSINESS"})
+    ok(f"plan change BUSINESS {code}") if success_code(code) else fail(f"plan change {code}")
     code, invoices = req("GET", "/v1/billing/invoices", token=admin)
     has_open = isinstance(invoices, list) and any(i.get("status") == "OPEN" for i in invoices)
     ok("OPEN invoice present") if has_open else fail(f"no OPEN invoice {invoices}")

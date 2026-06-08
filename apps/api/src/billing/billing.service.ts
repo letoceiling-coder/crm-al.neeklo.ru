@@ -8,16 +8,18 @@ import {
   MarketplaceInstallStatus,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { serializeBigInts } from '../common/utils/serialize.util';
 
 @Injectable()
 export class BillingPlanService {
   constructor(private prisma: PrismaService) {}
 
-  listPlans() {
-    return this.prisma.billingPlan.findMany({
+  async listPlans() {
+    const plans = await this.prisma.billingPlan.findMany({
       where: { isActive: true },
       orderBy: { sortOrder: 'asc' },
     });
+    return serializeBigInts(plans);
   }
 
   findByTier(tier: BillingPlanTier) {
@@ -89,7 +91,7 @@ export class SubscriptionService {
       where: { organizationId },
       include: { plan: true },
     });
-    if (sub) return sub;
+    if (sub) return serializeBigInts(sub);
 
     const freePlan = await this.plans.findByTier(BillingPlanTier.FREE);
     if (!freePlan) throw new NotFoundException('FREE plan not configured');
@@ -106,7 +108,7 @@ export class SubscriptionService {
       include: { plan: true },
     });
     await this.plans.syncPlanLimitsToOrganization(organizationId, freePlan.id);
-    return sub;
+    return serializeBigInts(sub);
   }
 
   async changePlan(organizationId: string, tier: BillingPlanTier) {
@@ -153,7 +155,7 @@ export class SubscriptionService {
       });
     }
 
-    return sub;
+    return serializeBigInts(sub);
   }
 }
 
@@ -204,12 +206,13 @@ export class BillingUsageService {
     };
   }
 
-  listInvoices(organizationId: string) {
-    return this.prisma.invoice.findMany({
+  async listInvoices(organizationId: string) {
+    const rows = await this.prisma.invoice.findMany({
       where: { organizationId },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
+    return serializeBigInts(rows);
   }
 }
 
