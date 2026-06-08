@@ -5,10 +5,11 @@ import { TenantGuard } from '../tenant/tenant.guard';
 import { CurrentTenant } from '../common/decorators';
 import { TenantContext } from '../common/interfaces/tenant-context.interface';
 import { RetrievalService } from './search/retrieval.service';
-import { IsOptional, IsString, IsUUID, IsInt, Min, Max } from 'class-validator';
+import { IsOptional, IsString, IsInt, Min, Max, MinLength } from 'class-validator';
 
 class RetrievalQueryDto {
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
   knowledgeBaseId!: string;
 
   @IsString()
@@ -21,15 +22,18 @@ class RetrievalQueryDto {
   limit?: number;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
   profileId?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
   categoryId?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
   topicId?: string;
 }
 

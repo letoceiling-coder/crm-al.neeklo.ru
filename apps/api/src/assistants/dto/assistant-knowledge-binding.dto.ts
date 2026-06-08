@@ -1,10 +1,10 @@
-import { IsBoolean, IsEnum, IsInt, IsNumber, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
+import { IsBoolean, IsEnum, IsInt, IsNumber, IsOptional, IsString, Max, Min, MinLength } from 'class-validator';
 import { AssistantSearchMode } from '@prisma/client';
 
 export class UpsertKnowledgeBindingDto {
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
   knowledgeBaseId!: string;
-
   @IsOptional()
   @IsBoolean()
   enabled?: boolean;

@@ -6,11 +6,12 @@ import { CurrentTenant } from '../common/decorators';
 import { TenantContext } from '../common/interfaces/tenant-context.interface';
 import { KnowledgeJobService } from './jobs/knowledge-job.service';
 import { KnowledgeJobStatus } from '@prisma/client';
-import { IsEnum, IsOptional, IsUUID } from 'class-validator';
+import { IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
 
 class ListJobsQueryDto {
   @IsOptional()
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
   knowledgeBaseId?: string;
 
   @IsOptional()

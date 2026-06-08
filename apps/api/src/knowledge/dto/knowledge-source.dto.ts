@@ -3,15 +3,14 @@ import {
   IsOptional,
   IsString,
   IsUrl,
-  IsUUID,
   MaxLength,
   MinLength,
-} from 'class-validator';
-import { KnowledgeSourceType, ParserMode } from '@prisma/client';
+} from 'class-validator';import { KnowledgeSourceType, ParserMode } from '@prisma/client';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateKnowledgeSourceDto {
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
   knowledgeBaseId!: string;
 
   @IsEnum(KnowledgeSourceType)
@@ -47,6 +46,7 @@ export class UpdateKnowledgeSourceDto {
 }
 
 export class ListKnowledgeSourcesQueryDto {
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
   knowledgeBaseId!: string;
 }

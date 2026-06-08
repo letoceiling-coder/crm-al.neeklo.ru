@@ -1,5 +1,4 @@
-import { IsEnum, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
-import { KnowledgeBaseStatus } from '@prisma/client';
+import { IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';import { KnowledgeBaseStatus } from '@prisma/client';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateKnowledgeBaseDto {
@@ -23,7 +22,8 @@ export class CreateKnowledgeBaseDto {
   status?: KnowledgeBaseStatus;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
   embeddingProfileId?: string;
 }
 
@@ -44,7 +44,8 @@ export class UpdateKnowledgeBaseDto {
   status?: KnowledgeBaseStatus;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
   embeddingProfileId?: string;
 }
 
