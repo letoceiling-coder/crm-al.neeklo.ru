@@ -24,6 +24,8 @@ import {
   Brain,
   Plug,
   Inbox,
+  Store,
+  Server,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth';
@@ -42,6 +44,7 @@ const mainNav = [
   { to: '/workflows', icon: Workflow, label: 'Автоматизация' },
   { to: '/memory', icon: Brain, label: 'Память' },
   { to: '/integrations', icon: Plug, label: 'Интеграции' },
+  { to: '/marketplace', icon: Store, label: 'Marketplace' },
   { to: '/messages', icon: Inbox, label: 'Сообщения' },
   { to: '/analytics', icon: BarChart3, label: 'Аналитика' },
   { to: '/docs', icon: BookOpen, label: 'Документация' },
@@ -50,6 +53,7 @@ const mainNav = [
 
 const adminNav = [
   { to: '/admin', icon: Shield, label: 'Admin Dashboard' },
+  { to: '/system', icon: Server, label: 'Система' },
   { to: '/agents', icon: Bot, label: 'Глобальные агенты' },
   { to: '/admin/users', icon: Users, label: 'Пользователи' },
   { to: '/admin/pricing', icon: DollarSign, label: 'Тарифы' },

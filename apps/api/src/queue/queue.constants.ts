@@ -13,6 +13,8 @@ export const QUEUE_NAMES = {
   WORKFLOW_RETRY: 'workflow-retry',
   WORKFLOW_DLQ: 'workflow-dlq',
   PARSER_JOBS: 'parser-jobs',
+  INTEGRATION_EVENTS: 'integration-events',
+  TOOL_EXECUTION: 'tool-execution',
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];

@@ -32,6 +32,8 @@ import { QueueMonitoringController } from './queue-monitoring.controller';
       { name: QUEUE_NAMES.WORKFLOW_RETRY },
       { name: QUEUE_NAMES.WORKFLOW_DLQ },
       { name: QUEUE_NAMES.PARSER_JOBS },
+      { name: QUEUE_NAMES.INTEGRATION_EVENTS },
+      { name: QUEUE_NAMES.TOOL_EXECUTION },
     ),
     BullBoardModule.forRoot({
       route: '/admin/queues',
@@ -52,6 +54,8 @@ import { QueueMonitoringController } from './queue-monitoring.controller';
       { name: QUEUE_NAMES.WORKFLOW_RETRY, adapter: BullMQAdapter },
       { name: QUEUE_NAMES.WORKFLOW_DLQ, adapter: BullMQAdapter },
       { name: QUEUE_NAMES.PARSER_JOBS, adapter: BullMQAdapter },
+      { name: QUEUE_NAMES.INTEGRATION_EVENTS, adapter: BullMQAdapter },
+      { name: QUEUE_NAMES.TOOL_EXECUTION, adapter: BullMQAdapter },
     ),
   ],
   controllers: [QueueMonitoringController],

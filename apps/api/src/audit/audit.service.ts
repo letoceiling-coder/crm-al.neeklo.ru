@@ -17,6 +17,8 @@ export class AuditService {
     userAgent?: string,
     entityType?: string,
     entityId?: string,
+    traceId?: string,
+    organizationId?: string,
   ) {
     return this.prisma.auditLog.create({
       data: {
@@ -27,6 +29,8 @@ export class AuditService {
         userAgent,
         entityType,
         entityId,
+        traceId,
+        organizationId,
       },
     });
   }

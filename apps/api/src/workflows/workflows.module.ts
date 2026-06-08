@@ -18,6 +18,11 @@ import { AssistantsModule } from '../assistants/assistants.module';
 import { ToolsModule } from '../tools/tools.module';
 import { CrmModule } from '../crm/crm.module';
 import { MemoryModule } from '../memory/memory.module';
+import { shouldRunWorkflowWorkers } from '../config/app-role';
+
+const workflowProcessors = shouldRunWorkflowWorkers()
+  ? [WorkflowRunProcessor, WorkflowRetryProcessor, WorkflowScheduleProcessor, WorkflowDlqProcessor]
+  : [];
 
 @Module({
   imports: [
@@ -36,10 +41,7 @@ import { MemoryModule } from '../memory/memory.module';
     WorkflowQueueService,
     WorkflowTemplateService,
     WorkflowMetricsService,
-    WorkflowRunProcessor,
-    WorkflowRetryProcessor,
-    WorkflowScheduleProcessor,
-    WorkflowDlqProcessor,
+    ...workflowProcessors,
   ],
   exports: [WorkflowService, WorkflowRunnerService, WorkflowTriggerService],
 })

@@ -1,6 +1,8 @@
-import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger, Optional } from '@nestjs/common';
 import axios from 'axios';
+import { createHash } from 'crypto';
 import { ProviderAccountsService } from '../../provider-accounts/provider-accounts.service';
+import { RedisCacheService } from '../../cache/redis-cache.service';
 import { AIProvider } from '@prisma/client';
 import type { EmbeddingProfile } from '@prisma/client';
 
@@ -8,7 +10,10 @@ import type { EmbeddingProfile } from '@prisma/client';
 export class EmbeddingClientService {
   private readonly logger = new Logger(EmbeddingClientService.name);
 
-  constructor(private providerAccounts: ProviderAccountsService) {}
+  constructor(
+    private providerAccounts: ProviderAccountsService,
+    @Optional() private cache?: RedisCacheService,
+  ) {}
 
   async embedTexts(profile: EmbeddingProfile, texts: string[], organizationId: string): Promise<number[][]> {
     if (!texts.length) return [];
@@ -25,7 +30,24 @@ export class EmbeddingClientService {
   }
 
   async embedText(profile: EmbeddingProfile, text: string, organizationId: string): Promise<number[]> {
+    const start = Date.now();
+    const cacheKey = this.cache?.buildKey(
+      'embedding',
+      profile.id,
+      createHash('sha256').update(text).digest('hex').slice(0, 32),
+    );
+    if (cacheKey && this.cache) {
+      const cached = await this.cache.get<number[]>(cacheKey);
+      if (cached) {
+        await this.cache.recordHit('embedding', Date.now() - start);
+        return cached;
+      }
+    }
     const [vec] = await this.embedTexts(profile, [text], organizationId);
+    if (cacheKey && this.cache) {
+      await this.cache.set(cacheKey, vec, 600);
+      await this.cache.recordMiss('embedding', Date.now() - start);
+    }
     return vec;
   }
 

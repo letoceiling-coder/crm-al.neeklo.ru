@@ -51,6 +51,22 @@ import {
   KnowledgeReembedProcessor,
 } from './jobs/chunk-embed-processors';
 import { WorkflowsModule } from '../workflows/workflows.module';
+import {
+  shouldRunKnowledgeWorkers,
+} from '../config/app-role';
+
+const knowledgeProcessors = shouldRunKnowledgeWorkers()
+  ? [
+      KnowledgeIngestProcessor,
+      KnowledgeSourceExpandProcessor,
+      KnowledgeDocumentProcessProcessor,
+      KnowledgeZipExtractProcessor,
+      KnowledgeReprocessProcessor,
+      KnowledgeChunkProcessor,
+      KnowledgeEmbedProcessor,
+      KnowledgeReembedProcessor,
+    ]
+  : [];
 
 @Module({
   imports: [ParserClientModule, StorageModule, QueueModule, ProviderAccountsModule, EmbeddingModule, forwardRef(() => WorkflowsModule)],
@@ -90,14 +106,7 @@ import { WorkflowsModule } from '../workflows/workflows.module';
     SearchService,
     RetrievalService,
     KnowledgeChunkService,
-    KnowledgeIngestProcessor,
-    KnowledgeSourceExpandProcessor,
-    KnowledgeDocumentProcessProcessor,
-    KnowledgeZipExtractProcessor,
-    KnowledgeReprocessProcessor,
-    KnowledgeChunkProcessor,
-    KnowledgeEmbedProcessor,
-    KnowledgeReembedProcessor,
+    ...knowledgeProcessors,
   ],
   exports: [
     KnowledgeBaseService,

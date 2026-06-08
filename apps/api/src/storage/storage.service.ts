@@ -10,7 +10,7 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Readable } from 'stream';
 
-export type StorageFolder = 'raw' | 'processed' | 'ocr' | 'chunks' | 'exports';
+export type StorageFolder = 'raw' | 'processed' | 'ocr' | 'chunks' | 'exports' | 'marketplace';
 
 @Injectable()
 export class StorageService {

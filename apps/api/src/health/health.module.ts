@@ -9,5 +9,6 @@ import { QueueModule } from '../queue/queue.module';
   imports: [ParserClientModule, StorageModule, QueueModule],
   controllers: [HealthController],
   providers: [HealthService],
+  exports: [HealthService],
 })
 export class HealthModule {}

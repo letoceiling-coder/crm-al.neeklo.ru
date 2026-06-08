@@ -63,6 +63,18 @@ enum AuditAction {
   API_REQUEST
   AGENT_REQUEST
   ERROR
+  KNOWLEDGE_INGEST
+  KNOWLEDGE_RETRIEVAL
+  MEMORY_READ
+  MEMORY_WRITE
+  WORKFLOW_STARTED
+  WORKFLOW_COMPLETED
+  WORKFLOW_FAILED
+  MARKETPLACE_PUBLISH
+  MARKETPLACE_INSTALL
+  INTEGRATION_EVENT
+  CRM_MUTATION
+  TOOL_EXECUTION
 }
 
 enum RequestStatus {
@@ -182,6 +194,9 @@ model User {
   crmActivitiesAuthored CrmActivity[] @relation("CrmActivityAuthor")
   workflowsCreated Workflow[] @relation("WorkflowCreatedBy")
   workflowsUpdated Workflow[] @relation("WorkflowUpdatedBy")
+  marketplacePackagesAuthored MarketplacePackage[] @relation("MarketplaceAuthor")
+  marketplaceInstalls MarketplaceInstall[] @relation("MarketplaceInstalledBy")
+  marketplaceReviews MarketplaceReview[] @relation("MarketplaceReviewAuthor")
 
   @@map("users")
 }
@@ -233,6 +248,9 @@ model Organization {
   assistantIntegrationChannels AssistantIntegrationChannel[]
   conversations    Conversation[]
   integrationEvents IntegrationEvent[]
+  marketplacePackages MarketplacePackage[]
+  marketplaceInstalls MarketplaceInstall[]
+  marketplaceReviews MarketplaceReview[]
 
   @@map("organizations")
 }
@@ -270,6 +288,11 @@ model PlanLimits {
   maxMemoryProfiles Int    @default(50) @map("max_memory_profiles")
   maxMemoryEntries  Int    @default(10000) @map("max_memory_entries")
   maxMemoryStorageMb Int   @default(100) @map("max_memory_storage_mb")
+  rpm               Int    @default(120)
+  dailyRequests     Int    @default(10000) @map("daily_requests")
+  monthlyRequests   Int    @default(300000) @map("monthly_requests")
+  monthlyTokens     BigInt @default(10000000) @map("monthly_tokens")
+  monthlyStorageMb  Int    @default(5120) @map("monthly_storage_mb")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
@@ -663,20 +686,24 @@ model UsageLog {
 }
 
 model AuditLog {
-  id         String      @id @default(cuid())
-  userId     String?     @map("user_id")
-  action     AuditAction
-  entityType String?     @map("entity_type")
-  entityId   String?     @map("entity_id")
-  details    Json?
-  ipAddress  String?     @map("ip_address")
-  userAgent  String?     @map("user_agent")
-  createdAt  DateTime    @default(now()) @map("created_at")
+  id             String      @id @default(cuid())
+  userId         String?     @map("user_id")
+  organizationId String?     @map("organization_id")
+  action         AuditAction
+  entityType     String?     @map("entity_type")
+  entityId       String?     @map("entity_id")
+  traceId        String?     @map("trace_id")
+  details        Json?
+  ipAddress      String?     @map("ip_address")
+  userAgent      String?     @map("user_agent")
+  createdAt      DateTime    @default(now()) @map("created_at")
 
   user User? @relation(fields: [userId], references: [id])
 
   @@index([userId, createdAt])
   @@index([action, createdAt])
+  @@index([traceId])
+  @@index([organizationId, createdAt])
   @@map("audit_logs")
 }
 
@@ -2056,4 +2083,163 @@ model IntegrationEvent {
   @@index([accountId, eventType])
   @@index([status])
   @@map("integration_events")
+}
+
+// ─── Stage 9: Marketplace Platform ───────────────────────────────────────────
+
+enum MarketplacePackageType {
+  ASSISTANT
+  WORKFLOW
+  TOOL
+  KNOWLEDGE_TEMPLATE
+  AUTOMATION_PACKAGE
+}
+
+enum MarketplacePackageStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum MarketplaceVisibility {
+  PUBLIC
+  PRIVATE
+  ORG_ONLY
+}
+
+enum MarketplaceAssetType {
+  ICON
+  BANNER
+  SCREENSHOT
+  FILE
+}
+
+enum MarketplaceInstallStatus {
+  ACTIVE
+  UNINSTALLED
+  FAILED
+}
+
+model MarketplaceCategory {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String?
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  packages MarketplacePackage[]
+
+  @@map("marketplace_categories")
+}
+
+model MarketplacePackage {
+  id             String                   @id @default(cuid())
+  organizationId String                   @map("organization_id")
+  authorId       String                   @map("author_id")
+  categoryId     String?                  @map("category_id")
+  name           String
+  slug           String                   @unique
+  description    String?                  @db.Text
+  type           MarketplacePackageType
+  version        String                   @default("1.0.0")
+  status         MarketplacePackageStatus @default(DRAFT)
+  visibility     MarketplaceVisibility    @default(PUBLIC)
+  downloads      Int                      @default(0)
+  installs       Int                      @default(0)
+  rating         Float                    @default(0)
+  ratingCount    Int                      @default(0) @map("rating_count")
+  icon           String?
+  banner         String?
+  isVerified     Boolean                  @default(false) @map("is_verified")
+  isFeatured     Boolean                  @default(false) @map("is_featured")
+  createdAt      DateTime                 @default(now()) @map("created_at")
+  updatedAt      DateTime                 @updatedAt @map("updated_at")
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  author       User                  @relation("MarketplaceAuthor", fields: [authorId], references: [id])
+  category     MarketplaceCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  versions     MarketplaceVersion[]
+  installsLog  MarketplaceInstall[]
+  reviews      MarketplaceReview[]
+  assets       MarketplaceAsset[]
+
+  @@index([organizationId, status])
+  @@index([type, status, visibility])
+  @@index([isFeatured, status])
+  @@map("marketplace_packages")
+}
+
+model MarketplaceVersion {
+  id          String    @id @default(cuid())
+  packageId   String    @map("package_id")
+  version     String
+  changelog   String?   @db.Text
+  manifest    Json      @default("{}")
+  publishedAt DateTime? @map("published_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  package  MarketplacePackage   @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  installs MarketplaceInstall[]
+
+  @@unique([packageId, version])
+  @@index([packageId, publishedAt])
+  @@map("marketplace_versions")
+}
+
+model MarketplaceInstall {
+  id                      String                   @id @default(cuid())
+  packageId               String                   @map("package_id")
+  versionId               String                   @map("version_id")
+  installedOrganizationId String                   @map("installed_organization_id")
+  installedById           String                   @map("installed_by_id")
+  status                  MarketplaceInstallStatus @default(ACTIVE)
+  clonedEntities          Json                     @default("{}") @map("cloned_entities")
+  error                   String?                  @db.Text
+  createdAt               DateTime                 @default(now()) @map("created_at")
+  uninstalledAt           DateTime?                @map("uninstalled_at")
+
+  package      MarketplacePackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  version      MarketplaceVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  organization Organization       @relation(fields: [installedOrganizationId], references: [id], onDelete: Cascade)
+  installedBy  User               @relation("MarketplaceInstalledBy", fields: [installedById], references: [id])
+
+  @@index([installedOrganizationId, status])
+  @@index([packageId, status])
+  @@map("marketplace_installs")
+}
+
+model MarketplaceReview {
+  id             String   @id @default(cuid())
+  packageId      String   @map("package_id")
+  organizationId String   @map("organization_id")
+  userId         String   @map("user_id")
+  rating         Int
+  comment        String?  @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  package      MarketplacePackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User               @relation("MarketplaceReviewAuthor", fields: [userId], references: [id])
+
+  @@unique([packageId, organizationId])
+  @@index([packageId, rating])
+  @@map("marketplace_reviews")
+}
+
+model MarketplaceAsset {
+  id        String               @id @default(cuid())
+  packageId String               @map("package_id")
+  type      MarketplaceAssetType
+  s3Key     String               @map("s3_key")
+  fileName  String               @map("file_name")
+  mimeType  String?              @map("mime_type")
+  sizeBytes Int?                 @map("size_bytes")
+  sortOrder Int                  @default(0) @map("sort_order")
+  createdAt DateTime             @default(now()) @map("created_at")
+
+  package MarketplacePackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@index([packageId, type])
+  @@map("marketplace_assets")
 }

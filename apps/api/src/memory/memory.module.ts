@@ -10,6 +10,9 @@ import { MemorySummarizeService } from './memory-summarize.service';
 import { MemoryQueueService } from './memory-queue.service';
 import { MemoryPlanLimitsService } from './memory-plan-limits.service';
 import { MemorySummarizeProcessor } from './memory.processors';
+import { shouldRunMemoryWorkers } from '../config/app-role';
+
+const memoryProcessors = shouldRunMemoryWorkers() ? [MemorySummarizeProcessor] : [];
 
 @Module({
   imports: [QueueModule, forwardRef(() => KnowledgeModule)],
@@ -22,7 +25,7 @@ import { MemorySummarizeProcessor } from './memory.processors';
     MemorySummarizeService,
     MemoryQueueService,
     MemoryPlanLimitsService,
-    MemorySummarizeProcessor,
+    ...memoryProcessors,
   ],
   exports: [
     MemoryProfileService,

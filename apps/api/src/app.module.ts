@@ -32,8 +32,12 @@ import { CrmModule } from './crm/crm.module';
 import { WorkflowsModule } from './workflows/workflows.module';
 import { MemoryModule } from './memory/memory.module';
 import { IntegrationsModule } from './integrations/integrations.module';
+import { MarketplaceModule } from './marketplace/marketplace.module';
+import { CacheModule } from './cache/cache.module';
+import { SystemModule } from './system/system.module';
 import { TenantGuard } from './tenant/tenant.guard';
 import { TenantInterceptor } from './tenant/tenant.interceptor';
+import { TraceInterceptor } from './common/interceptors/trace.interceptor';
 
 @Module({
   imports: [
@@ -58,6 +62,9 @@ import { TenantInterceptor } from './tenant/tenant.interceptor';
     WorkflowsModule,
     MemoryModule,
     IntegrationsModule,
+    MarketplaceModule,
+    CacheModule,
+    SystemModule,
     AuthModule,
     UsersModule,
     ApiKeysModule,
@@ -74,6 +81,7 @@ import { TenantInterceptor } from './tenant/tenant.interceptor';
     { provide: APP_GUARD, useClass: TenantGuard },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_INTERCEPTOR, useClass: TenantInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: TraceInterceptor },
   ],
 })
 export class AppModule {}

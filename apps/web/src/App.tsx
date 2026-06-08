@@ -38,6 +38,11 @@ import { IntegrationProviderPage } from '@/pages/integrations/provider';
 import { IntegrationAccountDetailPage } from '@/pages/integrations/account-detail';
 import { MessagesInboxPage } from '@/pages/messages';
 import { MessageDetailPage } from '@/pages/messages/detail';
+import { MarketplacePage } from '@/pages/marketplace';
+import { MarketplacePackageDetailPage } from '@/pages/marketplace/detail';
+import { MarketplacePublishPage } from '@/pages/marketplace/publish';
+import { MarketplaceMyPage } from '@/pages/marketplace/my';
+import { MarketplaceInstalledPage } from '@/pages/marketplace/installed';
 import { AnalyticsPage } from '@/pages/analytics';
 import { DocsPage } from '@/pages/docs';
 import { SettingsPage } from '@/pages/settings';
@@ -49,6 +54,14 @@ import {
 } from '@/pages/admin';
 import { AdminPricingPage } from '@/pages/admin/pricing';
 import { AdminUsagePage } from '@/pages/admin/usage';
+import { SystemOverviewPage } from '@/pages/system';
+import {
+  SystemMetricsPage,
+  SystemQueuesPage,
+  SystemHealthPage,
+  SystemDependenciesPage,
+  SystemSecurityPage,
+} from '@/pages/system/pages';
 import { useAuthStore } from '@/stores/auth';
 
 const queryClient = new QueryClient({
@@ -102,6 +115,11 @@ export default function App() {
             <Route path="integrations" element={<IntegrationsOverviewPage />} />
             <Route path="integrations/accounts/:id" element={<IntegrationAccountDetailPage />} />
             <Route path="integrations/:provider" element={<IntegrationProviderPage />} />
+            <Route path="marketplace" element={<MarketplacePage />} />
+            <Route path="marketplace/package/:id" element={<MarketplacePackageDetailPage />} />
+            <Route path="marketplace/publish" element={<MarketplacePublishPage />} />
+            <Route path="marketplace/my" element={<MarketplaceMyPage />} />
+            <Route path="marketplace/installed" element={<MarketplaceInstalledPage />} />
             <Route path="messages" element={<MessagesInboxPage />} />
             <Route path="messages/:id" element={<MessageDetailPage />} />
             <Route path="analytics" element={<AnalyticsPage />} />
@@ -113,6 +131,12 @@ export default function App() {
             <Route path="admin/pricing" element={<ProtectedAdmin><AdminPricingPage /></ProtectedAdmin>} />
             <Route path="admin/usage" element={<ProtectedAdmin><AdminUsagePage /></ProtectedAdmin>} />
             <Route path="admin/audit" element={<ProtectedAdmin><AdminAuditPage /></ProtectedAdmin>} />
+            <Route path="system" element={<ProtectedAdmin><SystemOverviewPage /></ProtectedAdmin>} />
+            <Route path="system/metrics" element={<ProtectedAdmin><SystemMetricsPage /></ProtectedAdmin>} />
+            <Route path="system/queues" element={<ProtectedAdmin><SystemQueuesPage /></ProtectedAdmin>} />
+            <Route path="system/health" element={<ProtectedAdmin><SystemHealthPage /></ProtectedAdmin>} />
+            <Route path="system/dependencies" element={<ProtectedAdmin><SystemDependenciesPage /></ProtectedAdmin>} />
+            <Route path="system/security" element={<ProtectedAdmin><SystemSecurityPage /></ProtectedAdmin>} />
             <Route path="admin/keys" element={<Navigate to="/admin" replace />} />
             <Route path="admin/agents" element={<Navigate to="/admin" replace />} />
             <Route path="admin/models" element={<Navigate to="/admin" replace />} />

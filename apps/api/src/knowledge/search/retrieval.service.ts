@@ -1,6 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { createHash } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TenantContext } from '../../common/interfaces/tenant-context.interface';
+import { RedisCacheService } from '../../cache/redis-cache.service';
 import { SearchService, MetadataSearchFilters } from './search.service';
 import { EmbeddingStoreService } from '../embedding/embedding-store.service';
 import { EmbeddingClientService } from '../embedding/embedding-client.service';
@@ -31,6 +33,7 @@ export class RetrievalService {
     private search: SearchService,
     private store: EmbeddingStoreService,
     private embedClient: EmbeddingClientService,
+    @Optional() private cache?: RedisCacheService,
   ) {}
 
   async searchByKeyword(
@@ -92,6 +95,24 @@ export class RetrievalService {
     filters?: Partial<MetadataSearchFilters>,
     options?: RetrievalOptions,
   ): Promise<RetrievalHit[]> {
+    const start = Date.now();
+    const qHash = createHash('sha256').update(query).digest('hex').slice(0, 24);
+    const cacheKey = this.cache?.buildKey(
+      'retrieval',
+      tenant.organizationId,
+      knowledgeBaseId,
+      qHash,
+      String(limit),
+      profileId ?? '',
+    );
+    if (cacheKey && this.cache) {
+      const cached = await this.cache.get<RetrievalHit[]>(cacheKey);
+      if (cached) {
+        await this.cache.recordHit('retrieval', Date.now() - start);
+        return cached;
+      }
+    }
+
     const kw = options?.keywordWeight ?? 0.3;
     const vw = options?.vectorWeight ?? 0.7;
 
@@ -102,11 +123,20 @@ export class RetrievalService {
       ),
     ]);
 
+    let result: RetrievalHit[];
     if (keyword.length && vector.length) {
-      return this.mergeWeighted(keyword, vector, kw, vw, limit);
+      result = this.mergeWeighted(keyword, vector, kw, vw, limit);
+    } else if (vector.length) {
+      result = vector.slice(0, limit);
+    } else {
+      result = keyword.slice(0, limit);
     }
-    if (vector.length) return vector.slice(0, limit);
-    return keyword.slice(0, limit);
+
+    if (cacheKey && this.cache) {
+      await this.cache.set(cacheKey, result, 120);
+      await this.cache.recordMiss('retrieval', Date.now() - start);
+    }
+    return result;
   }
 
   async searchWithMode(
