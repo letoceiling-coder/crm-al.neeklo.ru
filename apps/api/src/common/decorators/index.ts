@@ -11,3 +11,4 @@ export const API_KEY_AUTH = 'apiKeyAuth';
 
 export * from './tenant-scoped.decorator';
 export * from './current-tenant.decorator';
+export * from './plan-enforcement.decorator';

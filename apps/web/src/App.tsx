@@ -62,6 +62,11 @@ import {
   SystemDependenciesPage,
   SystemSecurityPage,
 } from '@/pages/system/pages';
+import { BillingOverviewPage } from '@/pages/billing';
+import { BillingSubscriptionPage, BillingUsagePage, BillingInvoicesPage } from '@/pages/billing/pages';
+import { OrganizationOverviewPage } from '@/pages/organization';
+import { OrganizationMembersPage, OrganizationInvitationsPage } from '@/pages/organization/pages';
+import { LegalIndexPage, LegalDocumentPage, BackupsPage, SupportDashboardPage } from '@/pages/legal';
 import { useAuthStore } from '@/stores/auth';
 
 const queryClient = new QueryClient({
@@ -126,6 +131,20 @@ export default function App() {
             <Route path="docs" element={<DocsPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="settings/assistant-templates" element={<AssistantTemplatesPage />} />
+            <Route path="billing" element={<BillingOverviewPage />} />
+            <Route path="billing/subscription" element={<BillingSubscriptionPage />} />
+            <Route path="billing/usage" element={<BillingUsagePage />} />
+            <Route path="billing/invoices" element={<BillingInvoicesPage />} />
+            <Route path="organization" element={<OrganizationOverviewPage />} />
+            <Route path="organization/members" element={<OrganizationMembersPage />} />
+            <Route path="organization/invitations" element={<OrganizationInvitationsPage />} />
+            <Route path="backups" element={<BackupsPage />} />
+            <Route path="legal" element={<LegalIndexPage />} />
+            <Route path="legal/terms" element={<LegalDocumentPage slug="terms" />} />
+            <Route path="legal/privacy" element={<LegalDocumentPage slug="privacy" />} />
+            <Route path="legal/cookies" element={<LegalDocumentPage slug="cookies" />} />
+            <Route path="legal/dpa" element={<LegalDocumentPage slug="dpa" />} />
+            <Route path="legal/marketplace-publisher" element={<LegalDocumentPage slug="marketplace-publisher" />} />
             <Route path="admin" element={<ProtectedAdmin><AdminDashboardPage /></ProtectedAdmin>} />
             <Route path="admin/users" element={<ProtectedAdmin><AdminUsersPage /></ProtectedAdmin>} />
             <Route path="admin/pricing" element={<ProtectedAdmin><AdminPricingPage /></ProtectedAdmin>} />
@@ -137,6 +156,8 @@ export default function App() {
             <Route path="system/health" element={<ProtectedAdmin><SystemHealthPage /></ProtectedAdmin>} />
             <Route path="system/dependencies" element={<ProtectedAdmin><SystemDependenciesPage /></ProtectedAdmin>} />
             <Route path="system/security" element={<ProtectedAdmin><SystemSecurityPage /></ProtectedAdmin>} />
+            <Route path="admin/support" element={<ProtectedAdmin><SupportDashboardPage /></ProtectedAdmin>} />
+            <Route path="admin/commercial" element={<ProtectedAdmin><AdminDashboardPage /></ProtectedAdmin>} />
             <Route path="admin/keys" element={<Navigate to="/admin" replace />} />
             <Route path="admin/agents" element={<Navigate to="/admin" replace />} />
             <Route path="admin/models" element={<Navigate to="/admin" replace />} />

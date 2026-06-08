@@ -197,6 +197,7 @@ model User {
   marketplacePackagesAuthored MarketplacePackage[] @relation("MarketplaceAuthor")
   marketplaceInstalls MarketplaceInstall[] @relation("MarketplaceInstalledBy")
   marketplaceReviews MarketplaceReview[] @relation("MarketplaceReviewAuthor")
+  organizationInvitationsSent OrganizationInvitation[] @relation("InvitationSentBy")
 
   @@map("users")
 }
@@ -251,6 +252,10 @@ model Organization {
   marketplacePackages MarketplacePackage[]
   marketplaceInstalls MarketplaceInstall[]
   marketplaceReviews MarketplaceReview[]
+  subscription        Subscription?
+  invoices            Invoice[]
+  usageAggregates     UsageAggregate[]
+  organizationInvitations OrganizationInvitation[]
 
   @@map("organizations")
 }
@@ -2151,6 +2156,9 @@ model MarketplacePackage {
   ratingCount    Int                      @default(0) @map("rating_count")
   icon           String?
   banner         String?
+  price          Decimal?                 @db.Decimal(12, 2)
+  currency       String                   @default("RUB")
+  billingType    MarketplaceBillingType   @default(FREE) @map("billing_type")
   isVerified     Boolean                  @default(false) @map("is_verified")
   isFeatured     Boolean                  @default(false) @map("is_featured")
   createdAt      DateTime                 @default(now()) @map("created_at")
@@ -2242,4 +2250,167 @@ model MarketplaceAsset {
 
   @@index([packageId, type])
   @@map("marketplace_assets")
+}
+
+// ─── Stage 11 — Commercial Readiness ───────────────────────────────────────
+
+enum BillingPlanTier {
+  FREE
+  PRO
+  BUSINESS
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  OVERDUE
+}
+
+enum UsageAggregatePeriod {
+  DAY
+  MONTH
+}
+
+enum MarketplaceBillingType {
+  FREE
+  PAID
+  SUBSCRIPTION
+}
+
+enum OrganizationInvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+model BillingPlan {
+  id                String          @id @default(cuid())
+  tier              BillingPlanTier @unique
+  name              String
+  description       String?         @db.Text
+  priceMonthlyRub   Decimal         @default(0) @map("price_monthly_rub") @db.Decimal(12, 2)
+  priceYearlyRub    Decimal?        @map("price_yearly_rub") @db.Decimal(12, 2)
+  currency          String          @default("RUB")
+  maxApiKeys        Int             @default(3) @map("max_api_keys")
+  maxAssistants     Int             @default(10) @map("max_assistants")
+  maxAgentApiKeys   Int             @default(20) @map("max_agent_api_keys")
+  maxKnowledgeBases Int             @default(5) @map("max_knowledge_bases")
+  maxDocuments      Int             @default(1000) @map("max_documents")
+  maxChunks         Int             @default(100000) @map("max_chunks")
+  maxToolInstances  Int             @default(20) @map("max_tool_instances")
+  maxStorageMb      Int             @default(5120) @map("max_storage_mb")
+  maxSources        Int             @default(50) @map("max_sources")
+  maxJobs           Int             @default(500) @map("max_jobs")
+  maxMemoryProfiles Int             @default(50) @map("max_memory_profiles")
+  maxMemoryEntries  Int             @default(10000) @map("max_memory_entries")
+  maxMemoryStorageMb Int            @default(100) @map("max_memory_storage_mb")
+  rpm               Int             @default(120)
+  dailyRequests     Int             @default(10000) @map("daily_requests")
+  monthlyRequests   Int             @default(300000) @map("monthly_requests")
+  monthlyTokens     BigInt          @default(10000000) @map("monthly_tokens")
+  monthlyStorageMb  Int             @default(5120) @map("monthly_storage_mb")
+  isActive          Boolean         @default(true) @map("is_active")
+  sortOrder         Int             @default(0) @map("sort_order")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+
+  subscriptions Subscription[]
+
+  @@map("billing_plans")
+}
+
+model Subscription {
+  id             String             @id @default(cuid())
+  organizationId String             @unique @map("organization_id")
+  planId         String             @map("plan_id")
+  status         SubscriptionStatus @default(ACTIVE)
+  startDate      DateTime           @map("start_date")
+  endDate        DateTime?          @map("end_date")
+  renewalDate    DateTime?          @map("renewal_date")
+  cancelledAt    DateTime?          @map("cancelled_at")
+  trialEndsAt    DateTime?          @map("trial_ends_at")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan         BillingPlan  @relation(fields: [planId], references: [id])
+  invoices     Invoice[]
+
+  @@index([planId, status])
+  @@map("subscriptions")
+}
+
+model Invoice {
+  id             String        @id @default(cuid())
+  organizationId String        @map("organization_id")
+  subscriptionId String?       @map("subscription_id")
+  invoiceNumber  String        @unique @map("invoice_number")
+  amountRub      Decimal       @map("amount_rub") @db.Decimal(12, 2)
+  currency       String        @default("RUB")
+  status         InvoiceStatus @default(DRAFT)
+  periodStart    DateTime      @map("period_start")
+  periodEnd      DateTime      @map("period_end")
+  dueDate        DateTime?     @map("due_date")
+  paidAt         DateTime?     @map("paid_at")
+  description    String?       @db.Text
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status])
+  @@index([subscriptionId])
+  @@map("invoices")
+}
+
+model UsageAggregate {
+  id             String               @id @default(cuid())
+  organizationId String               @map("organization_id")
+  periodType     UsageAggregatePeriod @map("period_type")
+  periodKey      String               @map("period_key")
+  requestCount   Int                  @default(0) @map("request_count")
+  tokenCount     BigInt               @default(0) @map("token_count")
+  storageMb      Int                  @default(0) @map("storage_mb")
+  costRub        Decimal              @default(0) @map("cost_rub") @db.Decimal(14, 6)
+  createdAt      DateTime             @default(now()) @map("created_at")
+  updatedAt      DateTime             @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, periodType, periodKey])
+  @@index([organizationId, periodType])
+  @@map("usage_aggregates")
+}
+
+model OrganizationInvitation {
+  id             String                       @id @default(cuid())
+  organizationId String                       @map("organization_id")
+  email          String
+  role           OrganizationRole             @default(OPERATOR)
+  token          String                       @unique
+  status         OrganizationInvitationStatus @default(PENDING)
+  invitedById    String                       @map("invited_by_id")
+  expiresAt      DateTime                     @map("expires_at")
+  acceptedAt     DateTime?                    @map("accepted_at")
+  createdAt      DateTime                     @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy    User         @relation("InvitationSentBy", fields: [invitedById], references: [id])
+
+  @@unique([organizationId, email])
+  @@index([token])
+  @@map("organization_invitations")
 }

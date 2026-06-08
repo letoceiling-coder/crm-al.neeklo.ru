@@ -3,6 +3,7 @@ import {
   IsBoolean,
   IsEnum,
   IsInt,
+  IsNumber,
   IsObject,
   IsOptional,
   IsString,
@@ -15,6 +16,7 @@ import {
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   MarketplaceAssetType,
+  MarketplaceBillingType,
   MarketplacePackageStatus,
   MarketplacePackageType,
   MarketplaceVisibility,
@@ -91,6 +93,19 @@ export class CreateMarketplacePackageDto {
   @IsString()
   @MaxLength(5000)
   changelog?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  price?: number;
+
+  @IsOptional()
+  @IsString()
+  currency?: string;
+
+  @IsOptional()
+  @IsEnum(MarketplaceBillingType)
+  billingType?: MarketplaceBillingType;
 }
 
 export class UpdateMarketplacePackageDto {
@@ -128,6 +143,19 @@ export class UpdateMarketplacePackageDto {
   @IsOptional()
   @IsBoolean()
   isFeatured?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  price?: number;
+
+  @IsOptional()
+  @IsString()
+  currency?: string;
+
+  @IsOptional()
+  @IsEnum(MarketplaceBillingType)
+  billingType?: MarketplaceBillingType;
 }
 
 export class PublishMarketplaceVersionDto {

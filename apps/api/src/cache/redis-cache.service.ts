@@ -117,4 +117,19 @@ export class RedisCacheService implements OnModuleDestroy {
     if (val === 1) await this.client.expire(key, ttlSec);
     return val;
   }
+
+  async incrBy(key: string, delta: number, ttlSec = this.defaultTtlSec): Promise<number> {
+    if (!this.client) return 0;
+    const val = await this.client.incrby(key, delta);
+    if (val === delta) await this.client.expire(key, ttlSec);
+    return val;
+  }
+
+  async getCounter(key: string): Promise<number | null> {
+    if (!this.client) return null;
+    const raw = await this.client.get(key);
+    if (raw == null) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  }
 }

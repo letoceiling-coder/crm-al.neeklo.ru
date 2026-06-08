@@ -7,9 +7,10 @@ import { UsageModule } from '../usage/usage.module';
 import { AgentsModule } from '../agents/agents.module';
 
 import { KeyModelProfilesModule } from '../key-model-profiles/key-model-profiles.module';
+import { SystemModule } from '../system/system.module';
 
 @Module({
-  imports: [ApiKeysModule, KeyModelProfilesModule, OpenRouterModule, UsageModule, AgentsModule],
+  imports: [ApiKeysModule, KeyModelProfilesModule, OpenRouterModule, UsageModule, AgentsModule, SystemModule],
   controllers: [GatewayController],
   providers: [GatewayService],
 })

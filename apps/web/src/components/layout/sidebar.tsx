@@ -26,6 +26,7 @@ import {
   Inbox,
   Store,
   Server,
+  CreditCard,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth';
@@ -45,6 +46,8 @@ const mainNav = [
   { to: '/memory', icon: Brain, label: 'Память' },
   { to: '/integrations', icon: Plug, label: 'Интеграции' },
   { to: '/marketplace', icon: Store, label: 'Marketplace' },
+  { to: '/billing', icon: CreditCard, label: 'Биллинг' },
+  { to: '/organization', icon: Building2, label: 'Организация' },
   { to: '/messages', icon: Inbox, label: 'Сообщения' },
   { to: '/analytics', icon: BarChart3, label: 'Аналитика' },
   { to: '/docs', icon: BookOpen, label: 'Документация' },
@@ -59,6 +62,8 @@ const adminNav = [
   { to: '/admin/pricing', icon: DollarSign, label: 'Тарифы' },
   { to: '/admin/usage', icon: BarChart3, label: 'Usage' },
   { to: '/admin/audit', icon: FileText, label: 'Audit Logs' },
+  { to: '/backups', icon: Server, label: 'Резервные копии' },
+  { to: '/admin/support', icon: Shield, label: 'Support' },
 ];
 
 export function Sidebar() {

@@ -11,6 +11,7 @@ import { OpenRouterService } from '../openrouter/openrouter.service';
 import { UsageService } from '../usage/usage.service';
 import { AgentsService } from '../agents/agents.service';
 import { RequestStatus } from '@prisma/client';
+import { SystemRateLimitService } from '../system/system-rate-limit.service';
 
 @Injectable()
 export class GatewayService {
@@ -20,6 +21,7 @@ export class GatewayService {
     private openRouter: OpenRouterService,
     private usage: UsageService,
     private agents: AgentsService,
+    private rateLimits: SystemRateLimitService,
   ) {}
 
   async chatCompletions(
@@ -29,6 +31,8 @@ export class GatewayService {
   ) {
     const apiKey = await this.authenticate(authHeader, ip);
     await this.assertBalance(apiKey.id);
+    await this.rateLimits.assertOrganizationLimits(apiKey.organizationId);
+    await this.rateLimits.assertApiKeyLimits(apiKey.id);
 
     const requestedModel =
       typeof body.model === 'string' ? body.model.trim() : '';
@@ -95,6 +99,7 @@ export class GatewayService {
         });
 
         await this.apiKeys.recalculateSpent(apiKey.id);
+        await this.rateLimits.recordTokenUsage(apiKey.organizationId, inputTokens + outputTokens);
         return data;
       } catch (err) {
         lastError = err as Error;
@@ -134,6 +139,8 @@ export class GatewayService {
   ) {
     const apiKey = await this.authenticate(authHeader, ip);
     await this.assertBalance(apiKey.id);
+    await this.rateLimits.assertOrganizationLimits(apiKey.organizationId);
+    await this.rateLimits.assertApiKeyLimits(apiKey.id);
 
     let agent;
     try {
@@ -249,6 +256,7 @@ export class GatewayService {
         });
 
         await this.apiKeys.recalculateSpent(apiKey.id);
+        await this.rateLimits.recordTokenUsage(apiKey.organizationId, inputTokens + outputTokens);
         return data;
       } catch (err) {
         lastError = err as Error;

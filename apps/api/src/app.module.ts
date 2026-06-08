@@ -35,9 +35,13 @@ import { IntegrationsModule } from './integrations/integrations.module';
 import { MarketplaceModule } from './marketplace/marketplace.module';
 import { CacheModule } from './cache/cache.module';
 import { SystemModule } from './system/system.module';
+import { BillingModule } from './billing/billing.module';
+import { ExportsModule } from './exports/exports.module';
+import { SupportModule } from './support/support.module';
 import { TenantGuard } from './tenant/tenant.guard';
 import { TenantInterceptor } from './tenant/tenant.interceptor';
 import { TraceInterceptor } from './common/interceptors/trace.interceptor';
+import { PlanEnforcementInterceptor } from './common/interceptors/plan-enforcement.interceptor';
 
 @Module({
   imports: [
@@ -65,6 +69,9 @@ import { TraceInterceptor } from './common/interceptors/trace.interceptor';
     MarketplaceModule,
     CacheModule,
     SystemModule,
+    BillingModule,
+    ExportsModule,
+    SupportModule,
     AuthModule,
     UsersModule,
     ApiKeysModule,
@@ -80,8 +87,10 @@ import { TraceInterceptor } from './common/interceptors/trace.interceptor';
     { provide: APP_GUARD, useClass: GlobalAuthGuard },
     { provide: APP_GUARD, useClass: TenantGuard },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    PlanEnforcementInterceptor,
     { provide: APP_INTERCEPTOR, useClass: TenantInterceptor },
     { provide: APP_INTERCEPTOR, useClass: TraceInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: PlanEnforcementInterceptor },
   ],
 })
 export class AppModule {}
