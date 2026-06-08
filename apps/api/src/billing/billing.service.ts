@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import {
   BillingPlanTier,
   InvoiceStatus,
@@ -115,6 +115,51 @@ export class SubscriptionService {
     const plan = await this.plans.findByTier(tier);
     if (!plan) throw new NotFoundException('Plan not found');
 
+    const current = await this.getOrCreate(organizationId);
+    const currentTier = (current as { plan?: { tier: BillingPlanTier } }).plan?.tier;
+    if (currentTier === tier) return current;
+
+    const price = Number(plan.priceMonthlyRub);
+    const now = new Date();
+    const renewal = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+    // FREE or ENTERPRISE (contract): apply immediately
+    if (price <= 0 || tier === BillingPlanTier.ENTERPRISE) {
+      return this.applyPaidPlan(organizationId, tier);
+    }
+
+    // Paid tier: invoice OPEN, activate on payment
+    const sub = await this.prisma.subscription.findUnique({ where: { organizationId } });
+    if (!sub) throw new NotFoundException('Subscription not found');
+
+    const invoice = await this.prisma.invoice.create({
+      data: {
+        organizationId,
+        subscriptionId: sub.id,
+        invoiceNumber: `INV-${organizationId.slice(-6)}-${Date.now()}`,
+        amountRub: plan.priceMonthlyRub,
+        currency: plan.currency,
+        status: InvoiceStatus.OPEN,
+        targetPlanTier: tier,
+        periodStart: now,
+        periodEnd: renewal,
+        dueDate: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+        description: `Подписка ${plan.name}`,
+      },
+    });
+
+    return serializeBigInts({
+      pending: true,
+      invoice,
+      subscription: sub,
+      message: 'Invoice created — complete payment to activate plan',
+    });
+  }
+
+  async applyPaidPlan(organizationId: string, tier: BillingPlanTier) {
+    const plan = await this.plans.findByTier(tier);
+    if (!plan) throw new NotFoundException('Plan not found');
+
     const now = new Date();
     const renewal = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
@@ -132,30 +177,58 @@ export class SubscriptionService {
         status: SubscriptionStatus.ACTIVE,
         renewalDate: renewal,
         cancelledAt: null,
+        endDate: null,
       },
       include: { plan: true },
     });
 
     await this.plans.syncPlanLimitsToOrganization(organizationId, plan.id);
+    return serializeBigInts(sub);
+  }
 
-    if (Number(plan.priceMonthlyRub) > 0) {
-      await this.prisma.invoice.create({
-        data: {
-          organizationId,
-          subscriptionId: sub.id,
-          invoiceNumber: `INV-${organizationId.slice(-6)}-${Date.now()}`,
-          amountRub: plan.priceMonthlyRub,
-          currency: plan.currency,
-          status: InvoiceStatus.OPEN,
-          periodStart: now,
-          periodEnd: renewal,
-          dueDate: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
-          description: `Подписка ${plan.name}`,
-        },
-      });
+  async cancelSubscription(organizationId: string) {
+    const sub = await this.prisma.subscription.findUnique({ where: { organizationId } });
+    if (!sub) throw new NotFoundException('Subscription not found');
+
+    const updated = await this.prisma.subscription.update({
+      where: { organizationId },
+      data: {
+        status: SubscriptionStatus.CANCELLED,
+        cancelledAt: new Date(),
+        endDate: sub.renewalDate ?? new Date(),
+      },
+      include: { plan: true },
+    });
+    return serializeBigInts(updated);
+  }
+
+  async renewSubscription(organizationId: string) {
+    const sub = await this.prisma.subscription.findUnique({
+      where: { organizationId },
+      include: { plan: true },
+    });
+    if (!sub) throw new NotFoundException('Subscription not found');
+    if (sub.status !== SubscriptionStatus.CANCELLED && sub.status !== SubscriptionStatus.EXPIRED) {
+      throw new BadRequestException('Subscription is already active');
     }
 
-    return serializeBigInts(sub);
+    const price = Number(sub.plan.priceMonthlyRub);
+    if (price > 0) {
+      return this.changePlan(organizationId, sub.plan.tier);
+    }
+
+    const renewal = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const updated = await this.prisma.subscription.update({
+      where: { organizationId },
+      data: {
+        status: SubscriptionStatus.ACTIVE,
+        cancelledAt: null,
+        endDate: null,
+        renewalDate: renewal,
+      },
+      include: { plan: true },
+    });
+    return serializeBigInts(updated);
   }
 }
 

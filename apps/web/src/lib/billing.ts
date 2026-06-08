@@ -4,9 +4,15 @@ export const billingApi = {
   getPlans: () => api.get('/v1/billing/plans').then((r) => r.data),
   getSubscription: () => api.get('/v1/billing/subscription').then((r) => r.data),
   changePlan: (tier: string) => api.post('/v1/billing/subscription/change', { tier }).then((r) => r.data),
+  cancelSubscription: () => api.post('/v1/billing/subscription/cancel').then((r) => r.data),
+  renewSubscription: () => api.post('/v1/billing/subscription/renew').then((r) => r.data),
   getUsage: () => api.get('/v1/billing/usage').then((r) => r.data),
   getLimits: () => api.get('/v1/billing/limits').then((r) => r.data),
   getInvoices: () => api.get('/v1/billing/invoices').then((r) => r.data),
+  getPaymentProviders: () => api.get('/v1/payments/providers').then((r) => r.data),
+  getPaymentHistory: () => api.get('/v1/payments/history').then((r) => r.data),
+  payInvoice: (invoiceId: string) => api.post(`/v1/payments/invoices/${invoiceId}/pay`, {}).then((r) => r.data),
+  mockCompletePayment: (paymentId: string) => api.post(`/v1/payments/${paymentId}/mock-complete`).then((r) => r.data),
   getCommercialMetrics: () => api.get('/v1/billing/admin/metrics').then((r) => r.data),
 };
 

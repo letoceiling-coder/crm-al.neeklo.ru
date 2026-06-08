@@ -101,6 +101,9 @@ export function LoginPage() {
                 {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                 {requires2Fa ? 'Подтвердить' : 'Войти'}
               </Button>
+              <p className="text-center text-sm text-muted-foreground pt-2">
+                Нет аккаунта? <a href="/register" className="text-primary underline">Регистрация</a>
+              </p>
             </form>
           </CardContent>
         </Card>

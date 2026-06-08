@@ -173,6 +173,8 @@ export class AuthService {
       role: user.role,
       theme: user.theme,
       twoFaEnabled: user.twoFaEnabled,
+      onboardingCompleted: user.onboardingCompleted,
+      onboardingStep: user.onboardingStep,
       createdAt: user.createdAt,
       activeOrganizationId: user.activeOrganizationId,
       activeOrganization: user.activeOrganization,

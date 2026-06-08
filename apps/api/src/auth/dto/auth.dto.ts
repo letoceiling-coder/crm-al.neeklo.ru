@@ -32,3 +32,34 @@ export class ChangePasswordDto {
   @MinLength(6)
   newPassword: string;
 }
+
+export class RegisterDto {
+  @IsEmail()
+  email!: string;
+
+  @IsString()
+  @MinLength(6)
+  password!: string;
+
+  @IsString()
+  @MinLength(2)
+  organizationName!: string;
+
+  @IsOptional()
+  @IsString()
+  name?: string;
+}
+
+export class ForgotPasswordDto {
+  @IsEmail()
+  email!: string;
+}
+
+export class ResetPasswordDto {
+  @IsString()
+  token!: string;
+
+  @IsString()
+  @MinLength(6)
+  newPassword!: string;
+}

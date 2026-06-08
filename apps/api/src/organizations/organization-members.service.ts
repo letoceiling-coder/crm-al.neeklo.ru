@@ -1,12 +1,18 @@
 import { Injectable, ForbiddenException, NotFoundException, ConflictException } from '@nestjs/common';
 import { OrganizationRole, OrganizationInvitationStatus } from '@prisma/client';
 import { randomBytes } from 'crypto';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { EmailService } from '../email/email.service';
 import { TenantContext } from '../common/interfaces/tenant-context.interface';
 
 @Injectable()
 export class OrganizationMembersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private email: EmailService,
+    private config: ConfigService,
+  ) {}
 
   private assertCanManage(role: OrganizationRole) {
     if (role !== OrganizationRole.OWNER && role !== OrganizationRole.ADMIN) {
@@ -26,7 +32,9 @@ export class OrganizationMembersService {
     const token = randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    return this.prisma.organizationInvitation.upsert({
+    const org = await this.prisma.organization.findUnique({ where: { id: tenant.organizationId } });
+
+    const invitation = await this.prisma.organizationInvitation.upsert({
       where: {
         organizationId_email: { organizationId: tenant.organizationId, email: normalized },
       },
@@ -47,6 +55,17 @@ export class OrganizationMembersService {
         acceptedAt: null,
       },
     });
+
+    const appUrl = this.config.get('APP_PUBLIC_URL', 'https://crm-al.neeklo.ru');
+    const inviteUrl = `${appUrl}/accept-invite?token=${token}`;
+    await this.email.sendOrganizationInvitation(
+      normalized,
+      org?.name ?? 'Organization',
+      inviteUrl,
+      role,
+    );
+
+    return invitation;
   }
 
   listInvitations(tenant: TenantContext) {

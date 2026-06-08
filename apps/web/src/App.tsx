@@ -63,7 +63,9 @@ import {
   SystemSecurityPage,
 } from '@/pages/system/pages';
 import { BillingOverviewPage } from '@/pages/billing';
-import { BillingSubscriptionPage, BillingUsagePage, BillingInvoicesPage } from '@/pages/billing/pages';
+import { BillingSubscriptionPage, BillingUsagePage, BillingInvoicesPage, BillingPaymentMethodsPage, BillingHistoryPage } from '@/pages/billing/pages';
+import { RegisterPage } from '@/pages/register';
+import { OnboardingPage } from '@/pages/onboarding';
 import { OrganizationOverviewPage } from '@/pages/organization';
 import { OrganizationMembersPage, OrganizationInvitationsPage } from '@/pages/organization/pages';
 import { LegalIndexPage, LegalDocumentPage, BackupsPage, SupportDashboardPage } from '@/pages/legal';
@@ -85,7 +87,9 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
           <Route element={<AppLayout />}>
+            <Route path="onboarding" element={<OnboardingPage />} />
             <Route index element={<DashboardPage />} />
             <Route path="keys" element={<ApiKeysPage />} />
             <Route path="key-models" element={<KeyModelProfilesPage />} />
@@ -135,6 +139,8 @@ export default function App() {
             <Route path="billing/subscription" element={<BillingSubscriptionPage />} />
             <Route path="billing/usage" element={<BillingUsagePage />} />
             <Route path="billing/invoices" element={<BillingInvoicesPage />} />
+            <Route path="billing/payment-methods" element={<BillingPaymentMethodsPage />} />
+            <Route path="billing/history" element={<BillingHistoryPage />} />
             <Route path="organization" element={<OrganizationOverviewPage />} />
             <Route path="organization/members" element={<OrganizationMembersPage />} />
             <Route path="organization/invitations" element={<OrganizationInvitationsPage />} />

@@ -38,9 +38,21 @@ export class BillingController {
   }
 
   @Post('subscription/change')
-  @ApiOperation({ summary: 'Change subscription plan (no payment gateway)' })
+  @ApiOperation({ summary: 'Change subscription plan — paid tiers require payment' })
   changePlan(@CurrentTenant() tenant: TenantContext, @Body() dto: ChangePlanDto) {
     return this.subscriptions.changePlan(tenant.organizationId, dto.tier);
+  }
+
+  @Post('subscription/cancel')
+  @ApiOperation({ summary: 'Cancel subscription at period end' })
+  cancel(@CurrentTenant() tenant: TenantContext) {
+    return this.subscriptions.cancelSubscription(tenant.organizationId);
+  }
+
+  @Post('subscription/renew')
+  @ApiOperation({ summary: 'Renew cancelled subscription' })
+  renew(@CurrentTenant() tenant: TenantContext) {
+    return this.subscriptions.renewSubscription(tenant.organizationId);
   }
 
   @Get('usage')

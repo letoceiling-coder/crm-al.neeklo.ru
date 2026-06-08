@@ -7,6 +7,8 @@ import { ExportService } from '../exports/export.service';
 import { OrganizationMembersService } from '../organizations/organization-members.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisCacheService } from '../cache/redis-cache.service';
+import { EmailService } from '../email/email.service';
+import { ConfigService } from '@nestjs/config';
 
 describe('Stage 11 — Commercial Readiness', () => {
   describe('BillingPlanService', () => {
@@ -82,7 +84,12 @@ describe('Stage 11 — Commercial Readiness', () => {
   describe('OrganizationMembersService', () => {
     it('requires admin to invite', async () => {
       const mod = await Test.createTestingModule({
-        providers: [OrganizationMembersService, { provide: PrismaService, useValue: {} }],
+        providers: [
+          OrganizationMembersService,
+          { provide: PrismaService, useValue: {} },
+          { provide: EmailService, useValue: { sendOrganizationInvitation: jest.fn() } },
+          { provide: ConfigService, useValue: { get: () => 'http://localhost' } },
+        ],
       }).compile();
       await expect(
         mod.get(OrganizationMembersService).invite(
