@@ -27,10 +27,16 @@ npm install
 
 echo "==> Build API"
 cd "$APP_DIR/apps/api"
-if npx nest build; then
+if NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=3072}" npx nest build; then
   echo "API build OK on server"
 else
-  echo "WARN: nest build failed (OOM?) — expecting pre-built dist in tarball"
+  echo "WARN: nest build failed (OOM?) — upload pre-built dist from CI/local:"
+  echo "  tar -czf crm-api-dist.tgz dist && scp crm-api-dist.tgz root@HOST:/tmp/"
+  echo "  ssh root@HOST 'cd $APP_DIR/apps/api && rm -rf dist && tar -xzf /tmp/crm-api-dist.tgz'"
+  if [[ ! -f "$APP_DIR/apps/api/dist/src/main.js" ]]; then
+    echo "ERROR: dist/src/main.js missing — aborting before PM2 restart"
+    exit 1
+  fi
 fi
 
 echo "==> Build Web"
