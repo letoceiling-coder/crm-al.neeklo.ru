@@ -12,8 +12,9 @@
 |------|-------|
 | Branch | `feature/v2-platform` |
 | Baseline HEAD | `b67baef` — Stage 9 + 10 |
-| Stage 11 commit | Pending — Stage 11 commercial readiness |
-| Tag | `stage-11-release` (to be created) |
+| Stage 11 commit | `d9b2671` — Stage 11 commercial readiness |
+| Post-deploy hotfix | `a794def` — billing BigInt serialization |
+| Tag | `stage-11-release` (on `d9b2671`, hotfix pushed separately) |
 | Deploy rule | **Committed code only** — no uncommitted tarball |
 
 ---
