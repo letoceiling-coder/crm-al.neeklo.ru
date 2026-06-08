@@ -11,9 +11,8 @@
 | Item | Value |
 |------|-------|
 | Branch | `feature/v2-platform` |
-| Tag | `stage-12-release` |
-| Baseline | Stage 11.1 (`cb6486b`) |
-| Deploy rule | Committed code only |
+| Tag | `stage-12-release` → `74cf990` |
+| Deploy | ✅ Completed 2026-06-08 |
 
 ---
 
