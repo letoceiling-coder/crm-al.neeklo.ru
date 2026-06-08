@@ -50,7 +50,10 @@ export class PaymentsService {
   }
 
   listProviders() {
-    return this.prisma.paymentProvider.findMany({ orderBy: { provider: 'asc' } });
+    return this.prisma.paymentProvider.findMany({
+      where: { provider: PaymentProviderType.YOOKASSA },
+      orderBy: { provider: 'asc' },
+    });
   }
 
   listPayments(organizationId: string) {

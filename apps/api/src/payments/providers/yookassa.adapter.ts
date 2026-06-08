@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { randomUUID } from 'crypto';
 import { PaymentProviderType } from '@prisma/client';
+import { SystemIntegrationsService } from '../../system-settings/system-integrations.service';
 import {
   PaymentProviderAdapter,
   CreatePaymentInput,
@@ -15,21 +16,17 @@ export class YooKassaAdapter implements PaymentProviderAdapter {
   readonly type = PaymentProviderType.YOOKASSA;
   private readonly logger = new Logger(YooKassaAdapter.name);
 
-  constructor(private config: ConfigService) {}
-
-  private get credentials() {
-    return {
-      shopId: this.config.get<string>('YOOKASSA_SHOP_ID', ''),
-      secretKey: this.config.get<string>('YOOKASSA_SECRET_KEY', ''),
-    };
-  }
-
-  private get mockMode(): boolean {
-    return this.config.get('PAYMENT_MOCK_MODE', 'true') === 'true' || !this.credentials.shopId;
-  }
+  constructor(
+    private config: ConfigService,
+    private integrations: SystemIntegrationsService,
+  ) {}
 
   async createPayment(input: CreatePaymentInput): Promise<CreatePaymentResult> {
-    if (this.mockMode) {
+    const { shopId, secretKey, mockMode } = await this.integrations.getPaymentCredentials(
+      PaymentProviderType.YOOKASSA,
+    );
+
+    if (mockMode) {
       const externalId = `mock_${randomUUID()}`;
       this.logger.log(`Mock YooKassa payment ${externalId} for ${input.amount} ${input.currency}`);
       return {
@@ -39,7 +36,10 @@ export class YooKassaAdapter implements PaymentProviderAdapter {
       };
     }
 
-    const { shopId, secretKey } = this.credentials;
+    if (!shopId || !secretKey) {
+      throw new Error('YooKassa credentials not configured');
+    }
+
     const idempotenceKey = input.paymentId;
     const res = await axios.post(
       'https://api.yookassa.ru/v3/payments',
@@ -71,7 +71,9 @@ export class YooKassaAdapter implements PaymentProviderAdapter {
     const payload = body as { event?: string; object?: { id: string; status: string; paid?: boolean } };
     if (!payload?.object?.id) return null;
 
-    if (this.mockMode && headers['x-mock-payment'] === 'true') {
+    const { mockMode } = await this.integrations.getPaymentCredentials(PaymentProviderType.YOOKASSA);
+
+    if (mockMode && headers['x-mock-payment'] === 'true') {
       return {
         externalId: payload.object.id,
         status: 'succeeded',

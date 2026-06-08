@@ -72,4 +72,24 @@ export class SecretEncryptionService {
     await this.prisma.encryptedSecret.delete({ where: { id: secretId } });
     return { deleted: true };
   }
+
+  async findByKey(organizationId: string, key: string): Promise<string | null> {
+    const row = await this.prisma.encryptedSecret.findFirst({
+      where: { organizationId, key },
+    });
+    if (!row) return null;
+    return decryptSecret({ ciphertext: row.ciphertext, iv: row.iv, tag: row.tag });
+  }
+
+  async upsertByKey(organizationId: string, key: string, plainValue: string) {
+    const existing = await this.prisma.encryptedSecret.findFirst({
+      where: { organizationId, key },
+    });
+    if (existing) {
+      await this.updateSecret(existing.id, organizationId, plainValue);
+      return existing.id;
+    }
+    const created = await this.storeSecret({ organizationId, key, plainValue });
+    return created.id;
+  }
 }

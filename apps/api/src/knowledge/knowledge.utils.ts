@@ -16,9 +16,12 @@ export function extractDomain(url: string): string | null {
   }
 }
 
+/** URL sources always use parser-html-site (pars-site.neeklo.ru). */
+export const URL_PARSER_MODE = 'parser-html-site';
+
 export function parserModeToApi(mode: string | null | undefined): string | undefined {
   if (!mode) return undefined;
-  return mode.toLowerCase().replace(/_/g, '_');
+  return mode.toLowerCase().replace(/_/g, '-');
 }
 
 export const DEFAULT_KB_STATS = {

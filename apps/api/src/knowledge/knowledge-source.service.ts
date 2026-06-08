@@ -58,7 +58,12 @@ export class KnowledgeSourceService {
 
   async getHealth(tenant: TenantContext, id: string) {
     const source = await this.assertOwned(id, tenant.organizationId);
-    const meta = (source.metadata ?? {}) as { averageChars?: number };
+    const meta = (source.metadata ?? {}) as {
+      averageChars?: number;
+      ingestProgress?: number;
+      lastRunAt?: string;
+      lastSuccessAt?: string;
+    };
     const domainProfile = source.domain
       ? await this.domainProfile.getProfile(source.domain)
       : null;
@@ -69,17 +74,23 @@ export class KnowledgeSourceService {
       take: 10,
     });
 
+    const latestJob = recentJobs[0];
+
     return {
       source: {
         id: source.id,
         name: source.name,
         type: source.type,
+        status: this.mapSourceStatus(source.crawlStatus),
         crawlStatus: source.crawlStatus,
+        progress: meta.ingestProgress ?? latestJob?.progress ?? 0,
+        lastRunAt: meta.lastRunAt ?? latestJob?.startedAt?.toISOString() ?? null,
+        lastSuccessAt: meta.lastSuccessAt ?? source.lastParsedAt?.toISOString() ?? null,
         lastParsedAt: source.lastParsedAt,
         successRate: source.successRate,
         qualityScore: source.qualityScore,
         lastError: source.lastError,
-        parserMode: source.parserMode,
+        parserMode: source.parserMode ?? 'parser-html-site',
         averageChars: meta.averageChars ?? domainProfile?.averageChars ?? null,
       },
       domainProfile,
@@ -201,6 +212,14 @@ export class KnowledgeSourceService {
     }
 
     throw new BadRequestException('Unsupported source type for crawl');
+  }
+
+  private mapSourceStatus(status: CrawlStatus): 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' {
+    if (status === CrawlStatus.ACTIVE) return 'PROCESSING';
+    if (status === CrawlStatus.BLOCKED) return 'FAILED';
+    if (status === CrawlStatus.COMPLETED) return 'COMPLETED';
+    if (status === CrawlStatus.FAILED) return 'FAILED';
+    return 'PENDING';
   }
 
   private validateSourceDto(dto: CreateKnowledgeSourceDto) {

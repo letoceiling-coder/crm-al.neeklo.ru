@@ -1,7 +1,8 @@
-import { IsOptional, IsString, IsUUID, MaxLength, MinLength, IsInt, Min } from 'class-validator';
+import { IsArray, IsOptional, IsString, MaxLength, MinLength, IsInt, Min } from 'class-validator';
 
 export class CreateCategoryDto {
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
   knowledgeBaseId!: string;
 
   @IsString()
@@ -19,7 +20,8 @@ export class CreateCategoryDto {
   description?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
   parentId?: string;
 
   @IsOptional()
@@ -46,10 +48,12 @@ export class UpdateCategoryDto {
 }
 
 export class CreateTopicDto {
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
   knowledgeBaseId!: string;
 
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
   categoryId!: string;
 
   @IsString()
@@ -80,7 +84,8 @@ export class UpdateTopicDto {
 }
 
 export class CreateTagDto {
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
   knowledgeBaseId!: string;
 
   @IsString()
@@ -95,11 +100,13 @@ export class CreateTagDto {
 }
 
 export class ListTaxonomyQueryDto {
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
   knowledgeBaseId!: string;
 }
 
 export class AssignDocumentTagsDto {
-  @IsUUID(undefined, { each: true })
+  @IsArray()
+  @IsString({ each: true })
   tagIds!: string[];
 }

@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AssistantEmptyState } from '@/components/assistants/empty-state';
 import {
   CRAWL_STATUS_LABELS,
+  SOURCE_STATUS_LABELS,
   JOB_STATUS_LABELS,
   JOB_TYPE_LABELS,
   SOURCE_TYPE_LABELS,
@@ -47,7 +48,14 @@ export function SourceHealthPanel({ source }: Props) {
           </CardTitle>
           <div className="flex flex-wrap gap-2 mt-1">
             <Badge variant="outline">{SOURCE_TYPE_LABELS[source.type]}</Badge>
-            <Badge variant="outline">{CRAWL_STATUS_LABELS[source.crawlStatus]}</Badge>
+            <Badge variant="outline">
+              {health?.source.status
+                ? SOURCE_STATUS_LABELS[health.source.status]
+                : CRAWL_STATUS_LABELS[source.crawlStatus]}
+            </Badge>
+            {health?.source.progress != null && health.source.progress > 0 && (
+              <Badge variant="outline">{health.source.progress}%</Badge>
+            )}
           </div>
         </div>
         <div className="flex gap-2 shrink-0">
@@ -77,7 +85,17 @@ export function SourceHealthPanel({ source }: Props) {
             <div className="space-y-4">
               <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 text-sm">
                 {[
-                  ['Последний обход', health.source.lastParsedAt ? formatDate(health.source.lastParsedAt) : '—'],
+                  ['Статус', health.source.status ? SOURCE_STATUS_LABELS[health.source.status] : '—'],
+                  ['Прогресс', `${health.source.progress ?? 0}%`],
+                  ['Последний запуск', health.source.lastRunAt ? formatDate(health.source.lastRunAt) : '—'],
+                  [
+                    'Последний успех',
+                    health.source.lastSuccessAt
+                      ? formatDate(health.source.lastSuccessAt)
+                      : health.source.lastParsedAt
+                        ? formatDate(health.source.lastParsedAt)
+                        : '—',
+                  ],
                   [
                     'Успешность',
                     health.source.successRate != null
@@ -86,7 +104,7 @@ export function SourceHealthPanel({ source }: Props) {
                   ],
                   ['Средний размер', health.source.averageChars ?? health.domainProfile?.averageChars ?? '—'],
                   ['Последняя ошибка', health.source.lastError ?? '—'],
-                  ['Режим парсинга', health.source.parserMode ?? health.domainProfile?.recommendedMode ?? '—'],
+                  ['Парсер', health.source.parserMode ?? 'parser-html-site'],
                   ['Качество', health.source.qualityScore ?? '—'],
                 ].map(([label, value]) => (
                   <div key={String(label)} className="rounded-lg border border-border p-3">

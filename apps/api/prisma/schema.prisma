@@ -75,6 +75,10 @@ enum AuditAction {
   INTEGRATION_EVENT
   CRM_MUTATION
   TOOL_EXECUTION
+  SYSTEM_SETTING_UPDATED
+  PAYMENT_PROVIDER_UPDATED
+  SMTP_UPDATED
+  ALERT_UPDATED
 }
 
 enum RequestStatus {
@@ -201,6 +205,7 @@ model User {
   marketplaceReviews MarketplaceReview[] @relation("MarketplaceReviewAuthor")
   organizationInvitationsSent OrganizationInvitation[] @relation("InvitationSentBy")
   passwordResetTokens         PasswordResetToken[]
+  systemSettingsUpdated       SystemSetting[]
 
   @@map("users")
 }
@@ -717,12 +722,39 @@ model AuditLog {
   @@map("audit_logs")
 }
 
-model SystemSetting {
-  id        String   @id @default(cuid())
-  key       String   @unique
-  value     Json
-  updatedAt DateTime @updatedAt @map("updated_at")
+enum SystemSettingType {
+  STRING
+  NUMBER
+  BOOLEAN
+  JSON
+}
 
+enum SystemSettingCategory {
+  GENERAL
+  PAYMENT
+  EMAIL
+  ALERT
+  REGISTRATION
+  BILLING
+  SECURITY
+  STORAGE
+  MONITORING
+  LAUNCH
+}
+
+model SystemSetting {
+  id          String                @id @default(cuid())
+  key         String                @unique
+  value       Json
+  type        SystemSettingType     @default(JSON)
+  category    SystemSettingCategory @default(GENERAL)
+  isEncrypted Boolean               @default(false) @map("is_encrypted")
+  updatedById String?               @map("updated_by_id")
+  updatedAt   DateTime              @updatedAt @map("updated_at")
+
+  updatedBy User? @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([category])
   @@map("system_settings")
 }
 

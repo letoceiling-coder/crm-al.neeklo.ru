@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { billingApi } from '@/lib/billing';
+import { useAuthStore } from '@/stores/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
@@ -165,21 +166,28 @@ export function BillingInvoicesPage() {
 }
 
 export function BillingPaymentMethodsPage() {
-  const { data: providers } = useQuery({ queryKey: ['payment-providers'], queryFn: billingApi.getPaymentProviders });
+  const isAdmin = useAuthStore((s) => s.isAdmin());
 
   return (
     <div className="space-y-6">
       <Link to="/billing" className="text-sm text-muted-foreground hover:text-foreground">← Биллинг</Link>
       <h1 className="text-2xl font-bold">Способы оплаты</h1>
       <Card>
-        <CardContent className="pt-6 space-y-3">
-          {(providers ?? []).map((p: { id: string; provider: string; isEnabled: boolean; isDefault: boolean }) => (
-            <div key={p.id} className="flex justify-between border-b py-2 text-sm">
-              <span>{p.provider}</span>
-              <span className="text-muted-foreground">{p.isEnabled ? (p.isDefault ? 'По умолчанию' : 'Доступен') : 'Скоро'}</span>
-            </div>
-          ))}
-          <p className="text-xs text-muted-foreground pt-2">YooKassa активна при настройке YOOKASSA_SHOP_ID. Stripe, Robokassa, CloudPayments — в roadmap.</p>
+        <CardContent className="pt-6 space-y-4">
+          <p className="text-sm">
+            This organization uses platform billing settings.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Платёжный провайдер (YooKassa) настраивается администратором платформы в системных настройках.
+          </p>
+          {isAdmin && (
+            <Link
+              to="/system/settings/payments"
+              className="inline-flex text-sm font-medium text-primary hover:underline"
+            >
+              Перейти в System → Settings → Payments →
+            </Link>
+          )}
         </CardContent>
       </Card>
     </div>

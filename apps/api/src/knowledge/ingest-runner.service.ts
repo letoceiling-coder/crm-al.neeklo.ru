@@ -9,12 +9,12 @@ import {
   passDocumentQualityGate,
   passManualTextGate,
 } from './knowledge-quality.gate';
-import { parserModeToApi, extractDomain } from './knowledge.utils';
+import { URL_PARSER_MODE, extractDomain } from './knowledge.utils';
 import {
+  CrawlStatus,
   KnowledgeDocumentFormat,
   KnowledgeDocumentStatus,
   KnowledgeJobStatus,
-  ParserMode,
 } from '@prisma/client';
 import type {
   IngestUrlJobPayload,
@@ -26,6 +26,7 @@ import { KnowledgeJobService } from './jobs/knowledge-job.service';
 import { KnowledgeQueueService } from './jobs/knowledge-queue.service';
 import { ZipExtractionService } from './domain/zip-extraction.service';
 import { WorkflowTriggerService } from '../workflows/workflow-trigger.service';
+import { AlertingService } from '../alerting/alerting.service';
 
 export type ProcessUrlResult = 'SUCCESS' | 'FAILED' | 'SKIPPED';
 
@@ -44,6 +45,7 @@ export class IngestRunnerService {
     private queue: KnowledgeQueueService,
     @Optional() @Inject(forwardRef(() => WorkflowTriggerService))
     private workflowTriggers?: WorkflowTriggerService,
+    @Optional() private alerting?: AlertingService,
   ) {}
 
   async runIngestUrl(payload: IngestUrlJobPayload): Promise<ProcessUrlResult> {
@@ -53,16 +55,25 @@ export class IngestRunnerService {
     await this.jobs.markRunning(jobId);
 
     const domain = extractDomain(url);
-    const userMode = payload.parserModeOverride as ParserMode | null | undefined;
-    const mode = domain
-      ? parserModeToApi(await this.domainProfile.resolveParserMode(domain, userMode ?? null))
-      : parserModeToApi(userMode ?? undefined);
+    const mode = URL_PARSER_MODE;
 
     try {
+      if (knowledgeSourceId) {
+        await this.updateSourceRunState(knowledgeSourceId, {
+          crawlStatus: CrawlStatus.ACTIVE,
+          progress: 5,
+          lastRunAt: new Date(),
+        });
+      }
+
       await this.prisma.knowledgeDocument.update({
         where: { id: documentId },
         data: { status: KnowledgeDocumentStatus.PROCESSING },
       });
+
+      if (knowledgeSourceId) {
+        await this.updateSourceRunState(knowledgeSourceId, { progress: 15 });
+      }
 
       const result = await this.parser.parseAndWait({ url, mode, async: true });
       const gate = passUrlQualityGate(result);
@@ -88,7 +99,14 @@ export class IngestRunnerService {
             parserWarnings: result.warnings as object | undefined,
           },
         });
-        if (knowledgeSourceId) await this.updateSourceStats(knowledgeSourceId, false, result.okContent);
+        if (knowledgeSourceId) {
+          await this.updateSourceStats(knowledgeSourceId, false, result.okContent);
+          await this.updateSourceRunState(knowledgeSourceId, {
+            crawlStatus: gate.reason === 'quality_gate' ? CrawlStatus.COMPLETED : CrawlStatus.FAILED,
+            progress: gate.reason === 'quality_gate' ? 100 : 0,
+            lastError: gate.reason === 'quality_gate' ? null : 'Quality gate failed',
+          });
+        }
         await this.stats.refresh(knowledgeBaseId);
         await this.jobs.markFinished(
           jobId,
@@ -106,15 +124,34 @@ export class IngestRunnerService {
         rawHtml: result.html,
       }, knowledgeSourceId);
 
+      if (knowledgeSourceId) {
+        await this.updateSourceRunState(knowledgeSourceId, {
+          crawlStatus: CrawlStatus.COMPLETED,
+          progress: 100,
+          lastSuccessAt: new Date(),
+        });
+      }
+
       await this.jobs.markFinished(jobId, KnowledgeJobStatus.SUCCESS, 100);
       return 'SUCCESS';
     } catch (err) {
-      this.logger.warn(`IngestUrl failed: ${(err as Error).message}`);
+      const errMsg = (err as Error).message;
+      this.logger.warn(`IngestUrl failed: ${errMsg}`);
+      if (knowledgeSourceId) {
+        await this.alerting?.parserFailure(knowledgeSourceId, url, errMsg);
+      }
       await this.prisma.knowledgeDocument.update({
         where: { id: documentId },
         data: { status: KnowledgeDocumentStatus.FAILED },
       });
-      if (knowledgeSourceId) await this.updateSourceStats(knowledgeSourceId, false);
+      if (knowledgeSourceId) {
+        await this.updateSourceStats(knowledgeSourceId, false);
+        await this.updateSourceRunState(knowledgeSourceId, {
+          crawlStatus: CrawlStatus.FAILED,
+          progress: 0,
+          lastError: (err as Error).message,
+        });
+      }
       await this.stats.refresh(knowledgeBaseId);
       await this.jobs.markFinished(jobId, KnowledgeJobStatus.FAILED, 0, (err as Error).message);
       return 'FAILED';
@@ -348,6 +385,38 @@ export class IngestRunnerService {
       organizationId,
       knowledgeBaseId,
       documentId,
+    });
+  }
+
+  private async updateSourceRunState(
+    sourceId: string,
+    patch: {
+      crawlStatus?: CrawlStatus;
+      progress?: number;
+      lastRunAt?: Date;
+      lastSuccessAt?: Date;
+      lastError?: string | null;
+    },
+  ) {
+    const source = await this.prisma.knowledgeSource.findUnique({ where: { id: sourceId } });
+    if (!source) return;
+
+    const meta = {
+      ...(typeof source.metadata === 'object' && source.metadata ? source.metadata : {}),
+    } as Record<string, unknown>;
+
+    if (patch.progress !== undefined) meta.ingestProgress = patch.progress;
+    if (patch.lastRunAt) meta.lastRunAt = patch.lastRunAt.toISOString();
+    if (patch.lastSuccessAt) meta.lastSuccessAt = patch.lastSuccessAt.toISOString();
+
+    await this.prisma.knowledgeSource.update({
+      where: { id: sourceId },
+      data: {
+        ...(patch.crawlStatus !== undefined ? { crawlStatus: patch.crawlStatus } : {}),
+        ...(patch.lastError !== undefined ? { lastError: patch.lastError } : {}),
+        ...(patch.lastSuccessAt ? { lastParsedAt: patch.lastSuccessAt } : {}),
+        metadata: meta as object,
+      },
     });
   }
 

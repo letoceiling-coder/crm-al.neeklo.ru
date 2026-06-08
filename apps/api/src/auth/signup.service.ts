@@ -1,5 +1,4 @@
 import { Injectable, ConflictException, ForbiddenException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import {
   BillingPlanTier,
@@ -9,6 +8,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BillingPlanService } from '../billing/billing.service';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { slugify } from '../common/utils/slug.util';
 import { RegisterDto } from './dto/auth.dto';
 
@@ -16,18 +16,18 @@ import { RegisterDto } from './dto/auth.dto';
 export class SignupService {
   constructor(
     private prisma: PrismaService,
-    private config: ConfigService,
     private plans: BillingPlanService,
+    private settings: SystemSettingsService,
   ) {}
 
-  assertRegistrationEnabled() {
-    if (this.config.get('REGISTRATION_ENABLED', 'false') !== 'true') {
+  async assertRegistrationEnabled() {
+    if (!(await this.settings.isRegistrationEnabled())) {
       throw new ForbiddenException('Public registration is not enabled');
     }
   }
 
   async register(dto: RegisterDto) {
-    this.assertRegistrationEnabled();
+    await this.assertRegistrationEnabled();
 
     const email = dto.email.trim().toLowerCase();
     const existing = await this.prisma.user.findUnique({ where: { email } });

@@ -51,6 +51,7 @@ import {
   KnowledgeReembedProcessor,
 } from './jobs/chunk-embed-processors';
 import { WorkflowsModule } from '../workflows/workflows.module';
+import { AlertingModule } from '../alerting/alerting.module';
 import {
   shouldRunKnowledgeWorkers,
 } from '../config/app-role';
@@ -69,7 +70,7 @@ const knowledgeProcessors = shouldRunKnowledgeWorkers()
   : [];
 
 @Module({
-  imports: [ParserClientModule, StorageModule, QueueModule, ProviderAccountsModule, EmbeddingModule, forwardRef(() => WorkflowsModule)],
+  imports: [ParserClientModule, StorageModule, QueueModule, ProviderAccountsModule, EmbeddingModule, AlertingModule, forwardRef(() => WorkflowsModule)],
   controllers: [
     KnowledgeBasesController,
     KnowledgeSourcesController,

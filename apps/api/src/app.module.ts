@@ -43,6 +43,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { EnterpriseModule } from './enterprise/enterprise.module';
 import { AlertingModule } from './alerting/alerting.module';
+import { SystemSettingsModule } from './system-settings/system-settings.module';
 import { TenantGuard } from './tenant/tenant.guard';
 import { TenantInterceptor } from './tenant/tenant.interceptor';
 import { TraceInterceptor } from './common/interceptors/trace.interceptor';
@@ -77,6 +78,7 @@ import { PlanEnforcementInterceptor } from './common/interceptors/plan-enforceme
     BillingModule,
     ExportsModule,
     SupportModule,
+    SystemSettingsModule,
     EmailModule,
     PaymentsModule,
     OnboardingModule,

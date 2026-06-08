@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom';
-import { Activity, Server, Layers, HeartPulse, Shield, DollarSign } from 'lucide-react';
+import { Activity, Server, Layers, HeartPulse, Shield, DollarSign, Settings } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const sections = [
+  { to: '/system/settings/general', icon: Settings, title: 'Настройки системы', desc: 'Платежи, SMTP, регистрация, launch' },
+  { to: '/system/launch', icon: HeartPulse, title: 'Launch Center', desc: 'GO / NO-GO readiness' },
   { to: '/system/metrics', icon: Activity, title: 'Мониторинг', desc: 'CPU, RAM, Redis, PostgreSQL, BullMQ' },
   { to: '/system/queues', icon: Layers, title: 'Очереди', desc: 'Lag, throughput, retry, DLQ' },
   { to: '/system/health', icon: HeartPulse, title: 'Health', desc: 'Состояние платформы' },

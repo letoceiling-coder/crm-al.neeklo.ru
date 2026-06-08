@@ -3,8 +3,8 @@ import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { SignupService } from './signup.service';
 import { PasswordResetService } from './password-reset.service';
-import { Public } from '../common/decorators';
-import {
+import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { Public } from '../common/decorators';import {
   LoginDto,
   Enable2FaDto,
   UpdateThemeDto,
@@ -21,6 +21,7 @@ export class AuthController {
     private authService: AuthService,
     private signup: SignupService,
     private passwordReset: PasswordResetService,
+    private systemSettings: SystemSettingsService,
   ) {}
 
   @Public()
@@ -42,8 +43,8 @@ export class AuthController {
 
   @Public()
   @Get('registration-status')
-  registrationStatus() {
-    return { enabled: process.env.REGISTRATION_ENABLED === 'true' };
+  async registrationStatus() {
+    return { enabled: await this.systemSettings.isRegistrationEnabled() };
   }
 
   @Public()

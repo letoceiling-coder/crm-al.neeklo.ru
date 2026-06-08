@@ -8,6 +8,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
 import { AlertingService } from '../alerting/alerting.service';
 import { SignupService } from '../auth/signup.service';
+import { SystemIntegrationsService } from '../system-settings/system-integrations.service';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 
 describe('Stage 12 — Enterprise Launch Readiness', () => {
   describe('SubscriptionService — paid plan flow', () => {
@@ -70,6 +72,12 @@ describe('Stage 12 — Enterprise Launch Readiness', () => {
         providers: [
           YooKassaAdapter,
           { provide: ConfigService, useValue: { get: () => 'true' } },
+          {
+            provide: SystemIntegrationsService,
+            useValue: {
+              getPaymentCredentials: jest.fn().mockResolvedValue({ shopId: '', secretKey: '', mockMode: true }),
+            },
+          },
         ],
       }).compile();
       const result = await mod.get(YooKassaAdapter).createPayment({
@@ -90,11 +98,14 @@ describe('Stage 12 — Enterprise Launch Readiness', () => {
         providers: [
           SignupService,
           { provide: PrismaService, useValue: {} },
-          { provide: ConfigService, useValue: { get: () => 'false' } },
           { provide: BillingPlanService, useValue: {} },
+          {
+            provide: SystemSettingsService,
+            useValue: { isRegistrationEnabled: jest.fn().mockResolvedValue(false) },
+          },
         ],
       }).compile();
-      expect(() => mod.get(SignupService).assertRegistrationEnabled()).toThrow();
+      await expect(mod.get(SignupService).assertRegistrationEnabled()).rejects.toThrow();
     });
   });
 });

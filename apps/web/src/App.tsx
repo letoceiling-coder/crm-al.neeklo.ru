@@ -62,6 +62,19 @@ import {
   SystemDependenciesPage,
   SystemSecurityPage,
 } from '@/pages/system/pages';
+import {
+  SystemSettingsLayout,
+  SettingsGeneralPage,
+  SettingsPaymentsPage,
+  SettingsEmailPage,
+  SettingsAlertsPage,
+  SettingsRegistrationPage,
+  SettingsBillingPage,
+  SettingsSecurityPage,
+  SettingsStoragePage,
+  SettingsMonitoringPage,
+} from '@/pages/system/settings';
+import { SystemLaunchPage } from '@/pages/system/launch';
 import { BillingOverviewPage } from '@/pages/billing';
 import { BillingSubscriptionPage, BillingUsagePage, BillingInvoicesPage, BillingPaymentMethodsPage, BillingHistoryPage } from '@/pages/billing/pages';
 import { RegisterPage } from '@/pages/register';
@@ -162,6 +175,19 @@ export default function App() {
             <Route path="system/health" element={<ProtectedAdmin><SystemHealthPage /></ProtectedAdmin>} />
             <Route path="system/dependencies" element={<ProtectedAdmin><SystemDependenciesPage /></ProtectedAdmin>} />
             <Route path="system/security" element={<ProtectedAdmin><SystemSecurityPage /></ProtectedAdmin>} />
+            <Route path="system/launch" element={<ProtectedAdmin><SystemLaunchPage /></ProtectedAdmin>} />
+            <Route path="system/settings" element={<ProtectedAdmin><SystemSettingsLayout /></ProtectedAdmin>}>
+              <Route index element={<Navigate to="general" replace />} />
+              <Route path="general" element={<SettingsGeneralPage />} />
+              <Route path="payments" element={<SettingsPaymentsPage />} />
+              <Route path="email" element={<SettingsEmailPage />} />
+              <Route path="alerts" element={<SettingsAlertsPage />} />
+              <Route path="registration" element={<SettingsRegistrationPage />} />
+              <Route path="billing" element={<SettingsBillingPage />} />
+              <Route path="security" element={<SettingsSecurityPage />} />
+              <Route path="storage" element={<SettingsStoragePage />} />
+              <Route path="monitoring" element={<SettingsMonitoringPage />} />
+            </Route>
             <Route path="admin/support" element={<ProtectedAdmin><SupportDashboardPage /></ProtectedAdmin>} />
             <Route path="admin/commercial" element={<ProtectedAdmin><AdminDashboardPage /></ProtectedAdmin>} />
             <Route path="admin/keys" element={<Navigate to="/admin" replace />} />

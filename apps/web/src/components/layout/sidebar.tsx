@@ -27,6 +27,7 @@ import {
   Store,
   Server,
   CreditCard,
+  Rocket,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth';
@@ -57,6 +58,8 @@ const mainNav = [
 const adminNav = [
   { to: '/admin', icon: Shield, label: 'Admin Dashboard' },
   { to: '/system', icon: Server, label: 'Система' },
+  { to: '/system/settings/general', icon: Settings, label: 'Настройки системы' },
+  { to: '/system/launch', icon: Rocket, label: 'Launch Center' },
   { to: '/agents', icon: Bot, label: 'Глобальные агенты' },
   { to: '/admin/users', icon: Users, label: 'Пользователи' },
   { to: '/admin/pricing', icon: DollarSign, label: 'Тарифы' },

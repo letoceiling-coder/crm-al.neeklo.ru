@@ -120,12 +120,21 @@ export const SOURCE_TYPE_LABELS: Record<KnowledgeSourceType, string> = {
   API: 'API',
 };
 
+export type SourceHealthStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+
 export const CRAWL_STATUS_LABELS: Record<CrawlStatus, string> = {
   PENDING: 'Ожидает',
-  ACTIVE: 'Активен',
+  ACTIVE: 'Обрабатывается',
   COMPLETED: 'Завершён',
   FAILED: 'Ошибка',
   BLOCKED: 'Заблокирован',
+};
+
+export const SOURCE_STATUS_LABELS: Record<SourceHealthStatus, string> = {
+  PENDING: 'Ожидает',
+  PROCESSING: 'Обрабатывается',
+  COMPLETED: 'Завершён',
+  FAILED: 'Ошибка',
 };
 
 export const DOC_STATUS_LABELS: Record<KnowledgeDocumentStatus, string> = {
@@ -243,7 +252,11 @@ export interface SourceHealth {
     id: string;
     name?: string | null;
     type: KnowledgeSourceType;
+    status: SourceHealthStatus;
     crawlStatus: CrawlStatus;
+    progress: number;
+    lastRunAt?: string | null;
+    lastSuccessAt?: string | null;
     lastParsedAt?: string | null;
     successRate?: number | null;
     qualityScore?: number | null;

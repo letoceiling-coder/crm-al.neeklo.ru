@@ -26,6 +26,6 @@ import { AdminGuard } from '../common/guards/admin.guard';
     SystemRateLimitService,
     AdminGuard,
   ],
-  exports: [SystemRateLimitService, SystemQueueService],
+  exports: [SystemRateLimitService, SystemQueueService, SystemHealthService, SystemDependenciesService],
 })
 export class SystemModule {}

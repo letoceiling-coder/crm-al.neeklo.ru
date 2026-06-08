@@ -2,6 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
+import { buildSmtpTransportOptions } from '../common/utils/smtp-transport.util';
+import { SystemIntegrationsService } from '../system-settings/system-integrations.service';
+import { SETTING_KEYS } from '../system-settings/system-settings.constants';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 
 export type EmailTemplate =
   | 'organization-invitation'
@@ -14,46 +18,56 @@ export type EmailTemplate =
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  private transporter: Transporter | null = null;
 
-  constructor(private config: ConfigService) {
-    this.initTransporter();
+  constructor(
+    private config: ConfigService,
+    private integrations: SystemIntegrationsService,
+    private settings: SystemSettingsService,
+  ) {}
+
+  private async getTransporter(): Promise<Transporter | null> {
+    const cfg = await this.integrations.resolveSmtpConfig();
+    if (!cfg.host || !cfg.user) return null;
+    return nodemailer.createTransport(buildSmtpTransportOptions(cfg));
   }
 
-  private initTransporter() {
-    const host = this.config.get<string>('SMTP_HOST');
-    const port = Number(this.config.get('SMTP_PORT', 587));
-    const user = this.config.get<string>('SMTP_USER');
-    const pass = this.config.get<string>('SMTP_PASSWORD');
-    const secure = this.config.get('SMTP_TLS', 'true') === 'true';
-
-    if (!host || !user) {
-      this.logger.warn('SMTP not configured — emails will be logged only');
-      return;
-    }
-
-    this.transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure,
-      auth: { user, pass },
-    });
-  }
-
-  isConfigured(): boolean {
-    return !!this.transporter;
+  async isConfigured(): Promise<boolean> {
+    const cfg = await this.integrations.resolveSmtpConfig();
+    return !!(cfg.host && cfg.user && cfg.password);
   }
 
   async send(to: string, subject: string, html: string, text?: string) {
-    const from = this.config.get('SMTP_FROM', 'noreply@crm-al.neeklo.ru');
+    const cfg = await this.integrations.resolveSmtpConfig();
+    const from = cfg.from || this.config.get('SMTP_FROM', 'noreply@crm-al.neeklo.ru');
+    const transporter = await this.getTransporter();
 
-    if (!this.transporter) {
+    if (!transporter) {
       this.logger.log(`[EMAIL STUB] to=${to} subject=${subject}`);
       return { queued: false, stub: true, to, subject };
     }
 
-    const info = await this.transporter.sendMail({ from, to, subject, html, text: text ?? html.replace(/<[^>]+>/g, '') });
-    return { messageId: info.messageId, queued: true };
+    try {
+      const info = await transporter.sendMail({
+        from,
+        to,
+        subject,
+        html,
+        text: text ?? html.replace(/<[^>]+>/g, ''),
+      });
+      await this.settings.set(SETTING_KEYS.EMAIL_LAST_SUCCESS, new Date().toISOString(), undefined, {
+        category: 'EMAIL' as never,
+      });
+      return { messageId: info.messageId, queued: true };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Send failed';
+      await this.settings.set(
+        SETTING_KEYS.EMAIL_LAST_ERROR,
+        { at: new Date().toISOString(), message },
+        undefined,
+        { category: 'EMAIL' as never },
+      );
+      throw err;
+    }
   }
 
   async sendOrganizationInvitation(to: string, orgName: string, inviteUrl: string, role: string) {
