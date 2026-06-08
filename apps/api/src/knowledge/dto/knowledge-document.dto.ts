@@ -3,7 +3,6 @@ import {
   IsOptional,
   IsString,
   IsUrl,
-  IsUUID,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -11,7 +10,8 @@ import { KnowledgeDocumentFormat } from '@prisma/client';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateUrlDocumentDto {
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
   knowledgeBaseId!: string;
 
   @IsUrl({ require_protocol: true })
@@ -23,12 +23,14 @@ export class CreateUrlDocumentDto {
   title?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
   knowledgeSourceId?: string;
 }
 
 export class CreateManualDocumentDto {
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
   knowledgeBaseId!: string;
 
   @IsString()
@@ -42,7 +44,8 @@ export class CreateManualDocumentDto {
 }
 
 export class ListKnowledgeDocumentsQueryDto {
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
   knowledgeBaseId!: string;
 
   @ApiPropertyOptional()
@@ -58,11 +61,13 @@ export class UpdateKnowledgeDocumentDto {
   title?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
   categoryId?: string | null;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
   topicId?: string | null;
 }
 

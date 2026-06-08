@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, forwardRef } from '@nestjs/common';
 import { WorkflowStepType } from '@prisma/client';
 import { TenantContext } from '../common/interfaces/tenant-context.interface';
 import { AssistantChatService } from '../assistants/assistant-chat.service';
@@ -20,14 +20,23 @@ export class WorkflowStepExecutorService {
   private readonly graph = new WorkflowGraphEngine();
 
   constructor(
+    @Inject(forwardRef(() => AssistantChatService))
     private chat: AssistantChatService,
+    @Inject(forwardRef(() => ToolExecutionService))
     private tools: ToolExecutionService,
+    @Inject(forwardRef(() => CrmToolService))
     private crmTools: CrmToolService,
+    @Inject(forwardRef(() => CrmLeadService))
     private leads: CrmLeadService,
+    @Inject(forwardRef(() => CrmClientService))
     private clients: CrmClientService,
+    @Inject(forwardRef(() => CrmTaskService))
     private tasks: CrmTaskService,
+    @Inject(forwardRef(() => CrmNoteService))
     private notes: CrmNoteService,
+    @Inject(forwardRef(() => MemorySearchService))
     private memorySearch: MemorySearchService,
+    @Inject(forwardRef(() => MemoryEntryService))
     private memoryEntries: MemoryEntryService,
   ) {}
 

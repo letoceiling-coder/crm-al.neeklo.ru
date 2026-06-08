@@ -14,7 +14,12 @@ import { ToolsModule } from '../tools/tools.module';
 import { MemoryModule } from '../memory/memory.module';
 
 @Module({
-  imports: [KnowledgeModule, OpenRouterModule, ToolsModule, forwardRef(() => MemoryModule)],
+  imports: [
+    forwardRef(() => KnowledgeModule),
+    OpenRouterModule,
+    forwardRef(() => ToolsModule),
+    forwardRef(() => MemoryModule),
+  ],
   controllers: [AssistantsController],
   providers: [
     AgentTemplateService,

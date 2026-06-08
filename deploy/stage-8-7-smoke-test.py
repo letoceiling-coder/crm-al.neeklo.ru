@@ -31,7 +31,7 @@ def main():
     ok = True
 
     code, login = req("POST", "/auth/login", {"email": "admin@ai-gateway.local", "password": "admin123"})
-    if code != 200 or "accessToken" not in login:
+    if code not in (200, 201) or "accessToken" not in login:
         print(f"FAIL login code={code} {login}")
         sys.exit(1)
     token = login["accessToken"]
@@ -66,14 +66,21 @@ def main():
             {
                 "knowledgeBaseId": kb_id,
                 "title": "Smoke Doc",
-                "content": "Test paragraph for chunking and embeddings.",
+                "text": "Test paragraph for chunking and embeddings. " * 20,
             },
             token,
         )
         if code not in (200, 201):
             print(f"WARN document code={code} {doc}")
         else:
-            print(f"PASS document id={doc.get('id')}")
+            doc_id = doc.get("id")
+            print(f"PASS document id={doc_id}")
+            code, chunks = req("GET", f"/v1/knowledge-chunks?knowledgeBaseId={kb_id}", token=token)
+            if code == 200:
+                print(f"PASS chunks listed count={len(chunks) if isinstance(chunks, list) else 'n/a'}")
+            code, emb = req("GET", f"/v1/knowledge-embeddings/summary?knowledgeBaseId={kb_id}", token=token)
+            if code == 200:
+                print(f"PASS embeddings summary {emb}")
 
     # Workflow
     code, wf = req(

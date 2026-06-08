@@ -5,14 +5,16 @@ import { TenantGuard } from '../tenant/tenant.guard';
 import { CurrentTenant } from '../common/decorators';
 import { TenantContext } from '../common/interfaces/tenant-context.interface';
 import { KnowledgeChunkService } from './knowledge-chunk.service';
-import { IsOptional, IsUUID } from 'class-validator';
+import { IsOptional, IsString, MinLength } from 'class-validator';
 
 class ListChunksQuery {
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
   knowledgeBaseId!: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
   documentId?: string;
 }
 

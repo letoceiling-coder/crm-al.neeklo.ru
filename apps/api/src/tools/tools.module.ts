@@ -15,8 +15,8 @@ import { IntegrationsModule } from '../integrations/integrations.module';
 @Module({
   imports: [
     SecretsModule,
-    KnowledgeModule,
-    CrmModule,
+    forwardRef(() => KnowledgeModule),
+    forwardRef(() => CrmModule),
     forwardRef(() => WorkflowsModule),
     forwardRef(() => IntegrationsModule),
   ],  controllers: [ToolsCatalogController, ToolsInstancesController],
