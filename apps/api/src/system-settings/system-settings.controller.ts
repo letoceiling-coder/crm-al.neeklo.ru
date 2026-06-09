@@ -117,8 +117,6 @@ export class SystemSettingsController {
       securityAlerts?: boolean;
       parserAlerts?: boolean;
       telegramEnabled?: boolean;
-      telegramChatId?: string;
-      telegramBotToken?: string;
     },
     @Req() req: AuthRequest,
   ) {
@@ -128,12 +126,6 @@ export class SystemSettingsController {
   @Post('alerts/test')
   testAlert(@Req() req: AuthRequest) {
     return this.integrations.sendTestAlert(req.user.id);
-  }
-
-  @Post('alerts/test-telegram')
-  @ApiOperation({ summary: 'Send test Telegram alert (optional channel)' })
-  testTelegramAlert() {
-    return this.integrations.testTelegramAlert();
   }
 
   @Get('registration')

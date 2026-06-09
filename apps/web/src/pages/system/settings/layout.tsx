@@ -28,7 +28,7 @@ export function SystemSettingsLayout() {
       </Button>
       <div>
         <h1 className="text-2xl font-bold">Настройки системы</h1>
-        <p className="text-muted-foreground">Launch-критичные параметры платформы — только ADMIN</p>
+        <p className="text-muted-foreground">Параметры запуска платформы — только ADMIN</p>
       </div>
       <div className="flex flex-col gap-6 lg:flex-row">
         <nav className="flex lg:w-56 shrink-0 flex-row flex-wrap gap-1 lg:flex-col">
@@ -55,7 +55,7 @@ export function SystemSettingsLayout() {
                 : 'text-muted-foreground hover:bg-muted',
             )}
           >
-            Launch Center
+            Центр запуска
           </Link>
         </nav>
         <div className="min-w-0 flex-1">

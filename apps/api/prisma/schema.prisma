@@ -206,6 +206,8 @@ model User {
   organizationInvitationsSent OrganizationInvitation[] @relation("InvitationSentBy")
   passwordResetTokens         PasswordResetToken[]
   systemSettingsUpdated       SystemSetting[]
+  telegramUsersApproved     TelegramUser[] @relation("TelegramApprovedBy")
+  agentCrmSystemConfigs     AgentCrmConfig[] @relation("AgentCrmSystemUser")
 
   @@map("users")
 }
@@ -236,7 +238,15 @@ model Organization {
   knowledgeTags    KnowledgeTag[]
   knowledgeJobs    KnowledgeJob[]
   knowledgeChunks  KnowledgeChunk[]
+  agentCrmConfigs  AgentCrmConfig[]
+  knowledgePipelineRuns KnowledgePipelineRun[]
+  agentCrmUsageAggregates AgentCrmUsageAggregate[]
+  extractedEntities KnowledgeExtractedEntity[]
+  tagSuggestions    KnowledgeTagSuggestion[]
+  agentCrmRetrievalQueries AgentCrmRetrievalQuery[]
+  agentCrmBenchmarkRuns AgentCrmBenchmarkRun[]
   assistantKnowledgeBindings AssistantKnowledgeBinding[]
+  knowledgeHistoryEvents KnowledgeHistoryEvent[]
   retrievalLogs    RetrievalLog[]
   toolInstances    ToolInstance[]
   assistantToolBindings AssistantToolBinding[]
@@ -482,6 +492,10 @@ model Model {
   agentChains     AgentModelChain[]
   globalFallbacks GlobalFallbackChain[]
   usageLogs       UsageLog[]
+  capabilityMappings ModelCapabilityMapping[]
+  pipelineStages KnowledgePipelineStage[]
+  stageStats     ModelStageStats[]
+  enrichmentCaches KnowledgeEnrichmentCache[]
 
   @@index([provider])
   @@index([isEnabled])
@@ -740,6 +754,28 @@ enum SystemSettingCategory {
   STORAGE
   MONITORING
   LAUNCH
+  TELEGRAM
+}
+
+enum TelegramUserStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum TelegramNotificationType {
+  QUEUE_ERROR
+  PARSER_ERROR
+  SMTP_ERROR
+  PAYMENT_ERROR
+  SECURITY_ALERT
+  SYSTEM_ALERT
+  STORAGE_WARNING
+}
+
+enum TelegramNotificationStatus {
+  SENT
+  FAILED
 }
 
 model SystemSetting {
@@ -756,6 +792,45 @@ model SystemSetting {
 
   @@index([category])
   @@map("system_settings")
+}
+
+model TelegramUser {
+  id           String             @id @default(cuid())
+  telegramId   BigInt             @unique @map("telegram_id")
+  username     String?
+  firstName    String?            @map("first_name")
+  lastName     String?            @map("last_name")
+  languageCode String?            @map("language_code")
+  status       TelegramUserStatus @default(PENDING)
+  isAdmin      Boolean            @default(false) @map("is_admin")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  approvedAt   DateTime?          @map("approved_at")
+  approvedById String?            @map("approved_by")
+
+  approvedBy    User?                    @relation("TelegramApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  notifications TelegramNotification[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("telegram_users")
+}
+
+model TelegramNotification {
+  id        String                     @id @default(cuid())
+  userId    String                     @map("user_id")
+  type      TelegramNotificationType
+  title     String
+  message   String                     @db.Text
+  status    TelegramNotificationStatus
+  createdAt DateTime                   @default(now()) @map("created_at")
+
+  user TelegramUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+  @@map("telegram_notifications")
 }
 
 model AgentTemplate {
@@ -928,6 +1003,7 @@ enum ChunkStrategy {
   SECTION
   LEGAL_ARTICLE
   MARKDOWN
+  SEMANTIC
 }
 
 model KnowledgeBase {
@@ -954,7 +1030,14 @@ model KnowledgeBase {
   tags             KnowledgeTag[]
   jobs             KnowledgeJob[]
   chunks           KnowledgeChunk[]
+  agentCrmConfigs  AgentCrmConfig[]
+  knowledgePipelineRuns KnowledgePipelineRun[]
+  extractedEntities KnowledgeExtractedEntity[]
+  tagSuggestions    KnowledgeTagSuggestion[]
+  agentCrmRetrievalQueries AgentCrmRetrievalQuery[]
+  agentCrmBenchmarkRuns AgentCrmBenchmarkRun[]
   assistantBindings AssistantKnowledgeBinding[]
+  historyEvents KnowledgeHistoryEvent[]
 
   @@unique([organizationId, slug])
   @@index([organizationId, status])
@@ -1027,6 +1110,10 @@ model KnowledgeDocument {
   tags            KnowledgeDocumentTag[]
   jobs            KnowledgeJob[]
   chunks          KnowledgeChunk[]
+  knowledgePipelineRuns KnowledgePipelineRun[]
+  extractedEntities KnowledgeExtractedEntity[]
+  tagSuggestions    KnowledgeTagSuggestion[]
+  historyEvents     KnowledgeHistoryEvent[]
 
   @@index([knowledgeBaseId, status])
   @@index([organizationId])
@@ -2566,4 +2653,480 @@ model EnterpriseContract {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("enterprise_contracts")
+}
+
+// ─── Stage 12.8.1 — AgentCrm Knowledge Orchestrator ─────────────────────────
+
+enum SystemProfileType {
+  SYSTEM_INTERNAL
+}
+
+enum AgentCrmConfigScope {
+  GLOBAL
+  ORGANIZATION
+  KNOWLEDGE_BASE
+}
+
+enum AgentCrmCapabilityType {
+  CLEANING
+  STRUCTURE
+  CLASSIFICATION
+  ENTITY_EXTRACTION
+  SUMMARY
+  TAGGING
+  VALIDATION
+  SEMANTIC_CHUNKING
+  EMBEDDING
+  JSON_OUTPUT
+  LONG_CONTEXT
+  FAST_RESPONSE
+  CHEAP_BATCH
+  MULTILINGUAL
+  RERANKING
+}
+
+enum PipelineStageType {
+  CLEANING
+  STRUCTURE
+  CLASSIFICATION
+  ENTITY_EXTRACTION
+  SUMMARY
+  TAGGING
+  VALIDATION
+  SEMANTIC_CHUNKING
+  EMBEDDING
+}
+
+enum PipelineRunStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  PARTIAL
+  FAILED
+  CANCELLED
+}
+
+enum PipelineStageStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+  SKIPPED
+  CACHED
+}
+
+model AgentCrmConfig {
+  id                  String              @id @default(cuid())
+  scope               AgentCrmConfigScope
+  organizationId      String?             @map("organization_id")
+  knowledgeBaseId     String?             @map("knowledge_base_id")
+  profileType         SystemProfileType   @default(SYSTEM_INTERNAL) @map("profile_type")
+  isActive            Boolean             @default(false) @map("is_active")
+  stageVersion        Int                 @default(1) @map("stage_version")
+  featureFlags        Json                @default("{}") @map("feature_flags")
+  stageConfig         Json                @default("{}") @map("stage_config")
+  tokenBudgetPerDoc   Int?                @map("token_budget_per_doc")
+  tokenBudgetPerMonth Int?                @map("token_budget_per_month")
+  systemUserId        String?             @map("system_user_id")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+
+  organization  Organization?  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  knowledgeBase KnowledgeBase? @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  systemUser    User?          @relation("AgentCrmSystemUser", fields: [systemUserId], references: [id], onDelete: SetNull)
+
+  @@index([scope])
+  @@index([organizationId])
+  @@index([knowledgeBaseId])
+  @@map("agentcrm_configs")
+}
+
+model AgentCrmCapability {
+  id          String                 @id @default(cuid())
+  capability  AgentCrmCapabilityType @unique
+  label       String
+  description String?                @db.Text
+  isActive    Boolean                @default(true) @map("is_active")
+  createdAt   DateTime               @default(now()) @map("created_at")
+  updatedAt   DateTime               @updatedAt @map("updated_at")
+
+  @@map("agentcrm_capabilities")
+}
+
+model ModelCapabilityMapping {
+  id         String                 @id @default(cuid())
+  modelId    String                 @map("model_id")
+  capability AgentCrmCapabilityType
+  source     String                 @default("admin")
+  confidence Float                  @default(1.0)
+  createdAt  DateTime               @default(now()) @map("created_at")
+
+  model Model @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  @@unique([modelId, capability])
+  @@index([capability])
+  @@map("model_capability_mappings")
+}
+
+model KnowledgePipelinePrompt {
+  id                  String            @id @default(cuid())
+  stage               PipelineStageType
+  version             Int
+  name                String
+  systemPrompt        String            @map("system_prompt") @db.Text
+  userPromptTemplate  String            @map("user_prompt_template") @db.Text
+  outputSchemaVersion Int               @default(1) @map("output_schema_version")
+  isActive            Boolean           @default(false) @map("is_active")
+  activatedAt         DateTime?         @map("activated_at")
+  deactivatedAt       DateTime?         @map("deactivated_at")
+  createdAt           DateTime          @default(now()) @map("created_at")
+
+  @@unique([stage, version])
+  @@index([stage, isActive])
+  @@map("knowledge_pipeline_prompts")
+}
+
+model KnowledgePipelineRun {
+  id                  String              @id @default(cuid())
+  organizationId      String              @map("organization_id")
+  knowledgeBaseId     String              @map("knowledge_base_id")
+  documentId          String              @map("document_id")
+  documentVersionId   String?             @map("document_version_id")
+  orchestrator        String              @default("agentcrm")
+  pipelineVersion     Int                 @default(2) @map("pipeline_version")
+  configScopeUsed     AgentCrmConfigScope @map("config_scope_used")
+  contentHash         String              @map("content_hash")
+  status              PipelineRunStatus   @default(PENDING)
+  currentStage        PipelineStageType?  @map("current_stage")
+  totalInputTokens    Int                 @default(0) @map("total_input_tokens")
+  totalOutputTokens   Int                 @default(0) @map("total_output_tokens")
+  totalCostUsd        Decimal             @default(0) @map("total_cost_usd") @db.Decimal(12, 6)
+  qualityScore        Int?                @map("quality_score")
+  qualityBreakdown    Json?               @map("quality_breakdown")
+  bullJobId           String?             @map("bull_job_id")
+  startedAt           DateTime?           @map("started_at")
+  finishedAt          DateTime?           @map("finished_at")
+  durationMs          Int                 @default(0) @map("duration_ms")
+  error               String?             @db.Text
+  createdAt           DateTime            @default(now()) @map("created_at")
+
+  organization  Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  knowledgeBase KnowledgeBase            @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  document      KnowledgeDocument        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  stages        KnowledgePipelineStage[]
+  entities      KnowledgeExtractedEntity[]
+  tagSuggestions KnowledgeTagSuggestion[]
+
+  @@index([organizationId, createdAt])
+  @@index([knowledgeBaseId, createdAt])
+  @@index([documentId, createdAt])
+  @@index([status])
+  @@index([contentHash])
+  @@map("knowledge_pipeline_runs")
+}
+
+model KnowledgePipelineStage {
+  id                  String              @id @default(cuid())
+  runId               String              @map("run_id")
+  stage               PipelineStageType
+  stageOrder          Int                 @map("stage_order")
+  status              PipelineStageStatus @default(PENDING)
+  promptVersion       Int?                @map("prompt_version")
+  outputSchemaVersion Int                 @default(1) @map("output_schema_version")
+  modelId             String?             @map("model_id")
+  modelUsed           String?             @map("model_used")
+  fallbackIndex       Int                 @default(0) @map("fallback_index")
+  inputTokens         Int                 @default(0) @map("input_tokens")
+  outputTokens        Int                 @default(0) @map("output_tokens")
+  costUsd             Decimal             @default(0) @map("cost_usd") @db.Decimal(12, 6)
+  latencyMs           Int                 @default(0) @map("latency_ms")
+  cacheHit            Boolean             @default(false) @map("cache_hit")
+  cacheKey            String?             @map("cache_key")
+  outputRef           String?             @map("output_ref")
+  outputJson          Json?               @map("output_json")
+  error               String?             @db.Text
+  startedAt           DateTime?           @map("started_at")
+  finishedAt          DateTime?           @map("finished_at")
+  createdAt           DateTime            @default(now()) @map("created_at")
+
+  run   KnowledgePipelineRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  model Model?               @relation(fields: [modelId], references: [id], onDelete: SetNull)
+
+  @@index([runId, stageOrder])
+  @@index([stage, status])
+  @@map("knowledge_pipeline_stages")
+}
+
+model KnowledgeEnrichmentCache {
+  id                  String            @id @default(cuid())
+  cacheKey            String            @unique @map("cache_key")
+  contentHash         String            @map("content_hash")
+  stage               PipelineStageType
+  stageVersion        Int               @map("stage_version")
+  outputSchemaVersion Int               @map("output_schema_version")
+  modelId             String            @map("model_id")
+  outputRef           String?           @map("output_ref")
+  outputJson          Json?             @map("output_json")
+  hitCount            Int               @default(0) @map("hit_count")
+  createdAt           DateTime          @default(now()) @map("created_at")
+  lastHitAt           DateTime?         @map("last_hit_at")
+  expiresAt           DateTime?         @map("expires_at")
+
+  model Model @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  @@index([contentHash, stage, stageVersion])
+  @@map("knowledge_enrichment_cache")
+}
+
+model ModelStageStats {
+  id              String            @id @default(cuid())
+  modelId         String            @map("model_id")
+  stage           PipelineStageType
+  successRate     Float             @default(1.0) @map("success_rate")
+  avgLatencyMs    Float             @default(0) @map("avg_latency_ms")
+  avgCostUsd      Float             @default(0) @map("avg_cost_usd")
+  avgKqsImpact    Float             @default(0) @map("avg_kqs_impact")
+  executionsCount Int               @default(0) @map("executions_count")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  model Model @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  @@unique([modelId, stage])
+  @@map("model_stage_stats")
+}
+
+model AgentCrmUsageAggregate {
+  id                 String   @id @default(cuid())
+  organizationId     String   @map("organization_id")
+  period             String
+  documentsProcessed Int      @default(0) @map("documents_processed")
+  runsTotal          Int      @default(0) @map("runs_total")
+  inputTokens        BigInt   @default(0) @map("input_tokens")
+  outputTokens       BigInt   @default(0) @map("output_tokens")
+  costUsd            Decimal  @default(0) @map("cost_usd") @db.Decimal(12, 6)
+  avgQualityScore    Float?   @map("avg_quality_score")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, period])
+  @@map("agentcrm_usage_aggregates")
+}
+
+enum KnowledgeExtractedEntityType {
+  ORGANIZATION
+  PERSON
+  PRODUCT
+  DOCUMENT
+  LAW
+  EMAIL
+  PHONE
+  WEBSITE
+  CUSTOM
+}
+
+enum KnowledgeTagSuggestionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model KnowledgeExtractedEntity {
+  id              String                     @id @default(cuid())
+  organizationId  String                     @map("organization_id")
+  knowledgeBaseId String                     @map("knowledge_base_id")
+  documentId      String                     @map("document_id")
+  runId           String?                    @map("run_id")
+  entityType      KnowledgeExtractedEntityType @map("entity_type")
+  name            String
+  normalizedName  String                     @map("normalized_name")
+  value           String?                    @db.Text
+  confidence      Float                      @default(1.0)
+  metadata        Json                       @default("{}")
+  createdAt       DateTime                   @default(now()) @map("created_at")
+
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  knowledgeBase KnowledgeBase  @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  document      KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  run           KnowledgePipelineRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+
+  @@index([documentId])
+  @@index([knowledgeBaseId, entityType])
+  @@map("knowledge_extracted_entities")
+}
+
+model KnowledgeTagSuggestion {
+  id              String                       @id @default(cuid())
+  organizationId  String                       @map("organization_id")
+  knowledgeBaseId String                       @map("knowledge_base_id")
+  documentId      String                       @map("document_id")
+  runId           String?                      @map("run_id")
+  tagName         String                       @map("tag_name")
+  confidence      Float                        @default(0.5)
+  status          KnowledgeTagSuggestionStatus @default(PENDING)
+  categoryId      String?                      @map("category_id")
+  topicId         String?                      @map("topic_id")
+  createdAt       DateTime                     @default(now()) @map("created_at")
+  reviewedAt      DateTime?                    @map("reviewed_at")
+
+  organization  Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  knowledgeBase KnowledgeBase     @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  document      KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  run           KnowledgePipelineRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+
+  @@index([documentId, status])
+  @@index([knowledgeBaseId, status])
+  @@map("knowledge_tag_suggestions")
+}
+
+// ─── Stage 12.8.3: AgentCrm Retrieval V2 ─────────────────────────────────────
+
+enum RetrievalQuestionClass {
+  FACT
+  SUMMARY
+  COMPARISON
+  PROCEDURE
+  LEGAL
+  TECHNICAL
+  FAQ
+  GENERAL
+}
+
+enum RetrievalStrategyType {
+  FACT_LOOKUP
+  SUMMARY_LOOKUP
+  DOCUMENT_LOOKUP
+  ENTITY_LOOKUP
+  HYBRID
+  AUTO
+}
+
+model AgentCrmRetrievalQuery {
+  id                String                 @id @default(cuid())
+  organizationId    String                 @map("organization_id")
+  knowledgeBaseId   String                 @map("knowledge_base_id")
+  query             String                 @db.Text
+  pipelineVersion   Int                    @default(2) @map("pipeline_version")
+  questionClass     RetrievalQuestionClass @map("question_class")
+  strategy          RetrievalStrategyType
+  queryAnalysis     Json                   @default("{}") @map("query_analysis")
+  keywordLatencyMs  Int                    @default(0) @map("keyword_latency_ms")
+  vectorLatencyMs   Int                    @default(0) @map("vector_latency_ms")
+  fusionLatencyMs   Int                    @default(0) @map("fusion_latency_ms")
+  rerankLatencyMs   Int                    @default(0) @map("rerank_latency_ms")
+  totalLatencyMs    Int                    @default(0) @map("total_latency_ms")
+  chunksRetrieved   Int                    @default(0) @map("chunks_retrieved")
+  chunksReranked    Int                    @default(0) @map("chunks_reranked")
+  chunksPacked      Int                    @default(0) @map("chunks_packed")
+  avgKqs            Float?                 @map("avg_kqs")
+  sourceDiversity   Float?                 @map("source_diversity")
+  rerankCostUsd     Float                  @default(0) @map("rerank_cost_usd")
+  explanations      Json                   @default("[]")
+  results           Json                   @default("[]")
+  metadata          Json                   @default("{}")
+  createdAt         DateTime               @default(now()) @map("created_at")
+
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  knowledgeBase KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@index([knowledgeBaseId, createdAt])
+  @@map("agentcrm_retrieval_queries")
+}
+
+// ─── Stage 12.8.3.1: AgentCrm Benchmark Validation ───────────────────────────
+
+enum AgentCrmBenchmarkRunStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  PARTIAL
+}
+
+model AgentCrmBenchmarkRun {
+  id               String                     @id @default(cuid())
+  organizationId   String                     @map("organization_id")
+  knowledgeBaseId  String                     @map("knowledge_base_id")
+  status           AgentCrmBenchmarkRunStatus @default(PENDING)
+  questionCount    Int                        @default(0) @map("question_count")
+  completedCount   Int                        @default(0) @map("completed_count")
+  failedCount      Int                        @default(0) @map("failed_count")
+  startedAt        DateTime?                  @map("started_at")
+  finishedAt       DateTime?                  @map("finished_at")
+  durationMs       Int                        @default(0) @map("duration_ms")
+  summary          Json                       @default("{}")
+  targets          Json                       @default("{}")
+  verdict          String?
+  createdAt        DateTime                   @default(now()) @map("created_at")
+
+  organization  Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  knowledgeBase KnowledgeBase           @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  results       AgentCrmBenchmarkResult[]
+
+  @@index([organizationId, createdAt])
+  @@index([knowledgeBaseId, createdAt])
+  @@map("agentcrm_benchmark_runs")
+}
+
+model AgentCrmBenchmarkResult {
+  id                  String   @id @default(cuid())
+  runId               String   @map("run_id")
+  questionId          String   @map("question_id")
+  goldenDocId         String   @map("golden_doc_id")
+  benchmarkCategory   String   @map("benchmark_category")
+  query               String   @db.Text
+  relevantDocumentIds Json     @default("[]") @map("relevant_document_ids")
+  v1                  Json     @default("{}")
+  v2                  Json     @default("{}")
+  metrics             Json     @default("{}")
+  error               String?  @db.Text
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  run AgentCrmBenchmarkRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+  @@index([goldenDocId])
+  @@map("agentcrm_benchmark_results")
+}
+
+// ─── Knowledge History ──────────────────────────────────────────────────────
+
+enum KnowledgeHistoryEventType {
+  KB_CREATED
+  KB_UPDATED
+  DOCUMENT_CREATED
+  DOCUMENT_UPDATED
+  DOCUMENT_DELETED
+  INGEST_COMPLETED
+  INGEST_FAILED
+  INGEST_SKIPPED
+  ENRICHMENT_STARTED
+  ENRICHMENT_COMPLETED
+  ENRICHMENT_FAILED
+  CHUNKING_COMPLETED
+  EMBEDDING_COMPLETED
+  DOCUMENT_REPROCESSED
+  ERROR
+}
+
+model KnowledgeHistoryEvent {
+  id              String                    @id @default(cuid())
+  organizationId  String                    @map("organization_id")
+  knowledgeBaseId String                    @map("knowledge_base_id")
+  documentId      String?                   @map("document_id")
+  eventType       KnowledgeHistoryEventType @map("event_type")
+  actorId         String?                   @map("actor_id")
+  actorEmail      String?                   @map("actor_email")
+  data            Json                      @default("{}")
+  createdAt       DateTime                  @default(now()) @map("created_at")
+
+  organization  Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  knowledgeBase KnowledgeBase      @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  document      KnowledgeDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  @@index([knowledgeBaseId, createdAt(sort: Desc)])
+  @@index([organizationId])
+  @@index([documentId])
+  @@map("knowledge_history_events")
 }

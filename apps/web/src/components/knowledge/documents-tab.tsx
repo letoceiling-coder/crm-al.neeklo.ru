@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileText, Upload, Link as LinkIcon } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -7,8 +7,8 @@ import { Input, Label, Textarea, Badge } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AssistantEmptyState } from '@/components/assistants/empty-state';
 import {
-  DOC_STATUS_LABELS,
   DOC_FORMAT_LABELS,
+  getDocDisplayStatus,
   type KnowledgeDocument,
 } from '@/lib/knowledge';
 import { formatDate } from '@/lib/utils';
@@ -75,11 +75,7 @@ export function KnowledgeDocumentsTab({ knowledgeBaseId, documents }: Props) {
     },
   });
 
-  const statusVariant = (s: string) => {
-    if (s === 'READY') return 'success' as const;
-    if (s === 'FAILED' || s === 'SKIPPED_QUALITY') return 'destructive' as const;
-    return 'outline' as const;
-  };
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
 
   return (
     <div className="space-y-6">
@@ -165,7 +161,7 @@ export function KnowledgeDocumentsTab({ knowledgeBaseId, documents }: Props) {
                 <th className="px-4 py-3">Название</th>
                 <th className="px-4 py-3">Формат</th>
                 <th className="px-4 py-3">Статус</th>
-                <th className="px-4 py-3">Версия</th>
+                <th className="px-4 py-3">Категория</th>
                 <th className="px-4 py-3">Символов</th>
                 <th className="px-4 py-3">Обновлён</th>
                 <th className="px-4 py-3" />
@@ -173,33 +169,174 @@ export function KnowledgeDocumentsTab({ knowledgeBaseId, documents }: Props) {
             </thead>
             <tbody>
               {documents.map((d) => (
+                <>
                 <tr key={d.id} className="border-b border-border/60">
                   <td className="px-4 py-3 font-medium break-words max-w-[200px]">{d.title ?? '—'}</td>
                   <td className="px-4 py-3">{DOC_FORMAT_LABELS[d.format]}</td>
                   <td className="px-4 py-3">
-                    <Badge variant={statusVariant(d.status)}>{DOC_STATUS_LABELS[d.status]}</Badge>
+                    {(() => { const ds = getDocDisplayStatus(d); return <Badge variant={ds.variant}>{ds.label}</Badge>; })()}
                   </td>
-                  <td className="px-4 py-3">{d.currentVersion || '—'}</td>
+                  <td className="px-4 py-3 text-muted-foreground text-xs">
+                    {d.category ? (
+                      <span title={d.topic?.name}>{d.category.name}{d.topic ? ` / ${d.topic.name}` : ''}</span>
+                    ) : '—'}
+                  </td>
                   <td className="px-4 py-3">{d.parserChars ?? '—'}</td>
                   <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
                     {formatDate(d.updatedAt)}
                   </td>
                   <td className="px-4 py-3">
-                    {d.format !== 'MANUAL' && (
+                    <div className="flex gap-1">
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
-                        disabled={reprocessMutation.isPending}
-                        onClick={() => reprocessMutation.mutate(d.id)}
+                        onClick={() => setSelectedDocId(selectedDocId === d.id ? null : d.id)}
                       >
-                        Перепарсить
+                        AI
                       </Button>
-                    )}
+                      {d.format !== 'MANUAL' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={reprocessMutation.isPending}
+                          onClick={() => reprocessMutation.mutate(d.id)}
+                        >
+                          Перепарсить
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
+                {selectedDocId === d.id && (
+                  <tr key={`${d.id}-ai`}>
+                    <td colSpan={7} className="bg-muted/30 px-4 py-3">
+                      <AiAnalysisPanel documentId={d.id} />
+                    </td>
+                  </tr>
+                )}
+                </>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── AI Analysis inline panel ───────────────────────────────────────────────
+
+function AiAnalysisPanel({ documentId }: { documentId: string }) {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['doc-ai-analysis', documentId],
+    queryFn: () => api.get(`/v1/knowledge-documents/${documentId}/ai-analysis`).then((r) => r.data),
+    staleTime: 60_000,
+  });
+
+  if (isLoading) return <p className="text-sm text-muted-foreground">Загрузка…</p>;
+  if (error || !data) return <p className="text-sm text-destructive">Данные анализа не найдены</p>;
+
+  const summary = (data.summary as Record<string, unknown>) ?? null;
+  const cls = (data.classification as Record<string, unknown>) ?? null;
+  const pipeline = data.pipeline as {
+    status: string;
+    qualityScore?: number | null;
+    stages?: { stage: string; status: string; errorMessage?: string | null }[];
+  } | null;
+
+  return (
+    <div className="grid gap-4 text-sm md:grid-cols-2 lg:grid-cols-3">
+      {/* Summary */}
+      {summary && (
+        <div>
+          <p className="font-semibold mb-1">Краткое содержание</p>
+          <p className="text-muted-foreground line-clamp-5">
+            {String(summary.summary ?? summary.text ?? summary.content ?? JSON.stringify(summary))}
+          </p>
+        </div>
+      )}
+
+      {/* Classification */}
+      {cls && (
+        <div>
+          <p className="font-semibold mb-1">Классификация</p>
+          <p className="text-muted-foreground">
+            <span className="font-medium">Категория:</span> {String(cls.category ?? '—')}
+          </p>
+          <p className="text-muted-foreground">
+            <span className="font-medium">Тема:</span> {String(cls.topic ?? '—')}
+          </p>
+          {typeof cls.confidence === 'number' && (
+            <p className="text-muted-foreground">
+              <span className="font-medium">Уверенность:</span>{' '}
+              {Math.round((cls.confidence as number) * 100)}%
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Entities */}
+      {Array.isArray(data.entities) && data.entities.length > 0 && (
+        <div>
+          <p className="font-semibold mb-1">Сущности ({(data.entities as unknown[]).length})</p>
+          <div className="flex flex-wrap gap-1">
+            {(data.entities as { name: string; entityType: string; confidence?: number }[])
+              .slice(0, 12)
+              .map((e, i) => (
+                <Badge key={i} variant="outline" className="text-xs">
+                  {e.name}
+                </Badge>
+              ))}
+          </div>
+        </div>
+      )}
+
+      {/* Tags */}
+      {Array.isArray(data.tags) && data.tags.length > 0 && (
+        <div>
+          <p className="font-semibold mb-1">Теги</p>
+          <div className="flex flex-wrap gap-1">
+            {(data.tags as { name: string }[]).map((t, i) => (
+              <Badge key={i} variant="secondary" className="text-xs">
+                {t.name}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Quality / Pipeline */}
+      {pipeline && (
+        <div>
+          <p className="font-semibold mb-1">Pipeline</p>
+          <p className="text-muted-foreground">
+            <span className="font-medium">Статус:</span>{' '}
+            <span
+              className={
+                pipeline.status === 'SUCCESS'
+                  ? 'text-green-600'
+                  : pipeline.status === 'PARTIAL'
+                    ? 'text-yellow-600'
+                    : 'text-red-600'
+              }
+            >
+              {pipeline.status}
+            </span>
+          </p>
+          {pipeline.qualityScore != null && (
+            <p className="text-muted-foreground">
+              <span className="font-medium">KQS:</span> {pipeline.qualityScore.toFixed(2)}
+            </p>
+          )}
+          {data.qualityReasons && Array.isArray(data.qualityReasons) && (data.qualityReasons as string[]).length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {(data.qualityReasons as string[]).map((r, i) => (
+                <Badge key={i} variant="outline" className="text-xs">
+                  {r}
+                </Badge>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

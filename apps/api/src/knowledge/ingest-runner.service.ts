@@ -14,6 +14,7 @@ import {
   CrawlStatus,
   KnowledgeDocumentFormat,
   KnowledgeDocumentStatus,
+  KnowledgeHistoryEventType,
   KnowledgeJobStatus,
 } from '@prisma/client';
 import type {
@@ -27,6 +28,8 @@ import { KnowledgeQueueService } from './jobs/knowledge-queue.service';
 import { ZipExtractionService } from './domain/zip-extraction.service';
 import { WorkflowTriggerService } from '../workflows/workflow-trigger.service';
 import { AlertingService } from '../alerting/alerting.service';
+import { AgentCrmRouterService } from '../agentcrm/router/agentcrm-router.service';
+import { KnowledgeHistoryService } from './knowledge-history.service';
 
 export type ProcessUrlResult = 'SUCCESS' | 'FAILED' | 'SKIPPED';
 
@@ -46,6 +49,8 @@ export class IngestRunnerService {
     @Optional() @Inject(forwardRef(() => WorkflowTriggerService))
     private workflowTriggers?: WorkflowTriggerService,
     @Optional() private alerting?: AlertingService,
+    @Optional() private agentCrmRouter?: AgentCrmRouterService,
+    @Optional() private historyService?: KnowledgeHistoryService,
   ) {}
 
   async runIngestUrl(payload: IngestUrlJobPayload): Promise<ProcessUrlResult> {
@@ -108,6 +113,16 @@ export class IngestRunnerService {
           });
         }
         await this.stats.refresh(knowledgeBaseId);
+        void this.historyService?.record({
+          organizationId,
+          knowledgeBaseId,
+          documentId,
+          eventType:
+            gate.reason === 'quality_gate'
+              ? KnowledgeHistoryEventType.INGEST_SKIPPED
+              : KnowledgeHistoryEventType.INGEST_FAILED,
+          data: { url, reason: gate.reason, chars: result.chars ?? 0 },
+        });
         await this.jobs.markFinished(
           jobId,
           gate.reason === 'quality_gate' ? KnowledgeJobStatus.SKIPPED : KnowledgeJobStatus.FAILED,
@@ -369,6 +384,14 @@ export class IngestRunnerService {
     if (knowledgeSourceId) await this.updateSourceStats(knowledgeSourceId, true, true);
     await this.stats.refresh(knowledgeBaseId);
 
+    void this.historyService?.record({
+      organizationId,
+      knowledgeBaseId,
+      documentId,
+      eventType: KnowledgeHistoryEventType.INGEST_COMPLETED,
+      data: { chars: meta.parserChars ?? text.length, version: nextVersion },
+    });
+
     void this.workflowTriggers?.emitKbEvent(organizationId, 'SOURCE_PARSED', {
       documentId,
       knowledgeBaseId,
@@ -380,6 +403,21 @@ export class IngestRunnerService {
       nextVersion > 1 ? 'DOCUMENT_REINDEXED' : 'INGESTION_FINISHED',
       { documentId, knowledgeBaseId, version: nextVersion },
     );
+
+    const versionRow = await this.prisma.knowledgeDocumentVersion.findFirst({
+      where: { documentId, version: nextVersion },
+      select: { id: true },
+    });
+
+    const agentCrmEnqueued = await this.agentCrmRouter?.enqueueIfEnabled({
+      organizationId,
+      knowledgeBaseId,
+      documentId,
+      documentVersionId: versionRow?.id,
+      processedText: text,
+    });
+
+    if (agentCrmEnqueued) return;
 
     await this.queue.enqueueChunk({
       organizationId,

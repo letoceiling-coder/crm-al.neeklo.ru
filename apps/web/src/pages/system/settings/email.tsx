@@ -136,7 +136,7 @@ export function SettingsEmailPage() {
 
       <CardHeader>
 
-        <CardTitle>Email (SMTP)</CardTitle>
+        <CardTitle>Почта (SMTP)</CardTitle>
 
       </CardHeader>
 
@@ -146,7 +146,7 @@ export function SettingsEmailPage() {
 
           <div className="space-y-2">
 
-            <label className="text-sm font-medium">Host</label>
+            <label className="text-sm font-medium">Сервер</label>
 
             <Input value={form.host} onChange={(e) => setForm({ ...form, host: e.target.value })} />
 
@@ -154,7 +154,7 @@ export function SettingsEmailPage() {
 
           <div className="space-y-2">
 
-            <label className="text-sm font-medium">Port</label>
+            <label className="text-sm font-medium">Порт</label>
 
             <Input
               type="number"
@@ -169,7 +169,7 @@ export function SettingsEmailPage() {
 
           <div className="space-y-2">
 
-            <label className="text-sm font-medium">Username</label>
+            <label className="text-sm font-medium">Логин</label>
 
             <Input
 
@@ -185,7 +185,7 @@ export function SettingsEmailPage() {
 
             <label className="text-sm font-medium">
 
-              Password {data?.hasPassword && '(установлен)'}
+              Пароль {data?.hasPassword && '(установлен)'}
 
             </label>
 
@@ -203,7 +203,7 @@ export function SettingsEmailPage() {
 
           <div className="space-y-2 sm:col-span-2">
 
-            <label className="text-sm font-medium">From Email</label>
+            <label className="text-sm font-medium">Email отправителя</label>
 
             <Input
 
@@ -229,7 +229,7 @@ export function SettingsEmailPage() {
 
           />
 
-          Secure (TLS / SSL — use for port 465 smtp.beget.com)
+          SSL/TLS (порт 465 — smtp.beget.com)
 
         </label>
 
@@ -253,13 +253,13 @@ export function SettingsEmailPage() {
 
           <Button onClick={() => save.mutate()} disabled={save.isPending}>
 
-            Save
+            Сохранить
 
           </Button>
 
           <Button variant="outline" onClick={() => testConn.mutate()} disabled={testConn.isPending}>
 
-            Test Connection
+            Проверить подключение
 
           </Button>
 

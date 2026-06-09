@@ -38,6 +38,8 @@ import { EmbeddingRunnerService } from './embedding/embedding-runner.service';
 import { SearchService } from './search/search.service';
 import { RetrievalService } from './search/retrieval.service';
 import { KnowledgeChunkService } from './knowledge-chunk.service';
+import { KnowledgeHistoryService } from './knowledge-history.service';
+import { KnowledgeHistoryController } from './knowledge-history.controller';
 import {
   KnowledgeIngestProcessor,
   KnowledgeSourceExpandProcessor,
@@ -52,6 +54,7 @@ import {
 } from './jobs/chunk-embed-processors';
 import { WorkflowsModule } from '../workflows/workflows.module';
 import { AlertingModule } from '../alerting/alerting.module';
+import { AgentCrmModule } from '../agentcrm/agentcrm.module';
 import {
   shouldRunKnowledgeWorkers,
 } from '../config/app-role';
@@ -70,7 +73,7 @@ const knowledgeProcessors = shouldRunKnowledgeWorkers()
   : [];
 
 @Module({
-  imports: [ParserClientModule, StorageModule, QueueModule, ProviderAccountsModule, EmbeddingModule, AlertingModule, forwardRef(() => WorkflowsModule)],
+  imports: [ParserClientModule, StorageModule, QueueModule, ProviderAccountsModule, EmbeddingModule, AlertingModule, forwardRef(() => AgentCrmModule), forwardRef(() => WorkflowsModule)],
   controllers: [
     KnowledgeBasesController,
     KnowledgeSourcesController,
@@ -82,6 +85,7 @@ const knowledgeProcessors = shouldRunKnowledgeWorkers()
     KnowledgeCategoriesController,
     KnowledgeTopicsController,
     KnowledgeTagsController,
+    KnowledgeHistoryController,
   ],
   providers: [
     KnowledgeBaseService,
@@ -107,6 +111,7 @@ const knowledgeProcessors = shouldRunKnowledgeWorkers()
     SearchService,
     RetrievalService,
     KnowledgeChunkService,
+    KnowledgeHistoryService,
     ...knowledgeProcessors,
   ],
   exports: [
@@ -117,10 +122,12 @@ const knowledgeProcessors = shouldRunKnowledgeWorkers()
     KnowledgeTaxonomyService,
     KnowledgeJobService,
     KnowledgeQueueService,
+    KnowledgePlanLimitsService,
     RetrievalService,
     SearchService,
     EmbeddingClientService,
     EmbeddingStoreService,
+    KnowledgeHistoryService,
   ],
 })
 export class KnowledgeModule {}

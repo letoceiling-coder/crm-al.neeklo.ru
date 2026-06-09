@@ -175,7 +175,7 @@ export function BillingPaymentMethodsPage() {
       <Card>
         <CardContent className="pt-6 space-y-4">
           <p className="text-sm">
-            This organization uses platform billing settings.
+            Эта организация использует платформенные настройки биллинга.
           </p>
           <p className="text-sm text-muted-foreground">
             Платёжный провайдер (YooKassa) настраивается администратором платформы в системных настройках.

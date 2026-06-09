@@ -97,6 +97,12 @@ export class KnowledgeDocumentsController {
     return this.service.reembed(tenant, id);
   }
 
+  @Get(':id/ai-analysis')
+  @ApiOperation({ summary: 'Get AgentCRM enrichment analysis for a document' })
+  getAiAnalysis(@CurrentTenant() tenant: TenantContext, @Param('id') id: string) {
+    return this.service.getAiAnalysis(tenant, id);
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: 'Delete document' })
   remove(@CurrentTenant() tenant: TenantContext, @Param('id') id: string) {

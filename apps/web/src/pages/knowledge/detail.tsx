@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, History } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input, Label, Textarea, Badge } from '@/components/ui/input';
@@ -12,7 +12,8 @@ import { KnowledgeDocumentsTab } from '@/components/knowledge/documents-tab';
 import { KnowledgeTaxonomyTab } from '@/components/knowledge/taxonomy-tab';
 import { KnowledgeJobsTab } from '@/components/knowledge/jobs-tab';
 import { KnowledgeChunksTab, KnowledgeEmbeddingsTab } from '@/components/knowledge/chunks-embeddings-tab';
-import { AssistantEmptyState } from '@/components/assistants/empty-state';
+import { KnowledgeHistoryTab } from '@/components/knowledge/history-tab';
+
 import {
   KB_STATUS_LABELS,
   type KnowledgeBaseDetail,
@@ -289,15 +290,7 @@ export function KnowledgeDetailPage() {
         </TabsContent>
 
         <TabsContent value="history">
-          <Card>
-            <CardContent className="pt-6">
-              <AssistantEmptyState
-                icon={History}
-                title="История пуста"
-                description="Журнал изменений базы знаний будет доступен в следующих этапах"
-              />
-            </CardContent>
-          </Card>
+          <KnowledgeHistoryTab knowledgeBaseId={kb.id} />
         </TabsContent>
 
         <TabsContent value="jobs">

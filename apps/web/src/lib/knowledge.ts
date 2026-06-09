@@ -72,9 +72,13 @@ export interface KnowledgeDocument {
   format: KnowledgeDocumentFormat;
   sourceUrl?: string | null;
   status: KnowledgeDocumentStatus;
+  embeddingStatus?: KnowledgeEmbeddingStatus;
   currentVersion: number;
   parserChars?: number | null;
   okContent?: boolean | null;
+  contentValidation?: { type?: string } | null;
+  category?: { id: string; name: string; slug: string } | null;
+  topic?: { id: string; name: string; slug: string } | null;
   createdAt: string;
   updatedAt: string;
   _count?: { versions: number };
@@ -285,3 +289,71 @@ export const DOC_FORMAT_LABELS: Record<KnowledgeDocumentFormat, string> = {
   ZIP: 'ZIP',
   MANUAL: 'Текст',
 };
+
+export type KnowledgeHistoryEventType =
+  | 'KB_CREATED'
+  | 'KB_UPDATED'
+  | 'DOCUMENT_CREATED'
+  | 'DOCUMENT_UPDATED'
+  | 'DOCUMENT_DELETED'
+  | 'INGEST_COMPLETED'
+  | 'INGEST_FAILED'
+  | 'INGEST_SKIPPED'
+  | 'ENRICHMENT_STARTED'
+  | 'ENRICHMENT_COMPLETED'
+  | 'ENRICHMENT_FAILED'
+  | 'CHUNKING_COMPLETED'
+  | 'EMBEDDING_COMPLETED'
+  | 'DOCUMENT_REPROCESSED'
+  | 'ERROR';
+
+export interface KnowledgeHistoryEvent {
+  id: string;
+  organizationId: string;
+  knowledgeBaseId: string;
+  documentId: string | null;
+  eventType: KnowledgeHistoryEventType;
+  actorId: string | null;
+  actorEmail: string | null;
+  data: Record<string, unknown>;
+  createdAt: string;
+  document?: { id: string; title: string | null; format: string } | null;
+}
+
+export const HISTORY_EVENT_LABELS: Record<KnowledgeHistoryEventType, string> = {
+  KB_CREATED: 'База знаний создана',
+  KB_UPDATED: 'База знаний обновлена',
+  DOCUMENT_CREATED: 'Документ создан',
+  DOCUMENT_UPDATED: 'Документ обновлён',
+  DOCUMENT_DELETED: 'Документ удалён',
+  INGEST_COMPLETED: 'Парсинг завершён',
+  INGEST_FAILED: 'Парсинг завершился с ошибкой',
+  INGEST_SKIPPED: 'Парсинг пропущен (качество)',
+  ENRICHMENT_STARTED: 'Обогащение запущено',
+  ENRICHMENT_COMPLETED: 'Обогащение завершено',
+  ENRICHMENT_FAILED: 'Обогащение завершилось с ошибкой',
+  CHUNKING_COMPLETED: 'Чанкинг завершён',
+  EMBEDDING_COMPLETED: 'Эмбеддинг завершён',
+  DOCUMENT_REPROCESSED: 'Документ переобработан',
+  ERROR: 'Ошибка',
+};
+
+/** Compute a user-friendly combined document status from status + embeddingStatus */
+export function getDocDisplayStatus(doc: KnowledgeDocument): {
+  label: string;
+  variant: 'success' | 'destructive' | 'outline' | 'secondary';
+} {
+  if (doc.status === 'FAILED') return { label: 'Ошибка', variant: 'destructive' };
+  if (doc.status === 'SKIPPED_QUALITY') return { label: 'Пропущен (качество)', variant: 'destructive' };
+  if (doc.status === 'PENDING') return { label: 'Загружен', variant: 'outline' };
+  if (doc.status === 'PROCESSING') return { label: 'Обрабатывается', variant: 'outline' };
+
+  // READY — show enrichment/embedding progress
+  const emb = doc.embeddingStatus;
+  if (!emb || emb === 'PENDING') return { label: 'Обогащение…', variant: 'secondary' };
+  if (emb === 'CHUNKING') return { label: 'Чанкинг…', variant: 'secondary' };
+  if (emb === 'EMBEDDING') return { label: 'Эмбеддинг…', variant: 'secondary' };
+  if (emb === 'FAILED') return { label: 'Ошибка эмбеддинга', variant: 'destructive' };
+  if (emb === 'INDEXED') return { label: 'Готово', variant: 'success' };
+  return { label: 'Готово', variant: 'success' };
+}

@@ -152,7 +152,6 @@ describe('Stage 12.4 — System Settings Admin Panel', () => {
         securityAlerts: true,
         parserAlerts: true,
         telegramEnabled: false,
-        telegramChatId: '',
         hasTelegramBotToken: false,
       });
       jest.spyOn(integrations, 'getRegistrationSettings').mockResolvedValue({

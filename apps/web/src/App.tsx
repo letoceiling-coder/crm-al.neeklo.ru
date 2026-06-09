@@ -75,6 +75,12 @@ import {
   SettingsMonitoringPage,
 } from '@/pages/system/settings';
 import { SystemLaunchPage } from '@/pages/system/launch';
+import {
+  TelegramLayout,
+  TelegramSettingsPage,
+  TelegramUsersPage,
+  TelegramHistoryPage,
+} from '@/pages/system/telegram';
 import { BillingOverviewPage } from '@/pages/billing';
 import { BillingSubscriptionPage, BillingUsagePage, BillingInvoicesPage, BillingPaymentMethodsPage, BillingHistoryPage } from '@/pages/billing/pages';
 import { RegisterPage } from '@/pages/register';
@@ -176,6 +182,12 @@ export default function App() {
             <Route path="system/dependencies" element={<ProtectedAdmin><SystemDependenciesPage /></ProtectedAdmin>} />
             <Route path="system/security" element={<ProtectedAdmin><SystemSecurityPage /></ProtectedAdmin>} />
             <Route path="system/launch" element={<ProtectedAdmin><SystemLaunchPage /></ProtectedAdmin>} />
+            <Route path="system/telegram" element={<ProtectedAdmin><TelegramLayout /></ProtectedAdmin>}>
+              <Route index element={<Navigate to="settings" replace />} />
+              <Route path="settings" element={<TelegramSettingsPage />} />
+              <Route path="users" element={<TelegramUsersPage />} />
+              <Route path="history" element={<TelegramHistoryPage />} />
+            </Route>
             <Route path="system/settings" element={<ProtectedAdmin><SystemSettingsLayout /></ProtectedAdmin>}>
               <Route index element={<Navigate to="general" replace />} />
               <Route path="general" element={<SettingsGeneralPage />} />

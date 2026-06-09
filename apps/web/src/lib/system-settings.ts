@@ -38,7 +38,6 @@ export const systemSettingsApi = {
   updateAlerts: (body: Record<string, unknown>) =>
     api.patch('/v1/system/settings/alerts', body).then((r) => r.data),
   testAlert: () => api.post('/v1/system/settings/alerts/test').then((r) => r.data),
-  testTelegramAlert: () => api.post('/v1/system/settings/alerts/test-telegram').then((r) => r.data),
 
   getRegistration: () => api.get('/v1/system/settings/registration').then((r) => r.data),
   updateRegistration: (body: Record<string, unknown>) =>

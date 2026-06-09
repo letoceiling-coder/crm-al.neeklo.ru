@@ -21,6 +21,7 @@ export const SETTING_KEYS = {
   ALERTS_SECURITY: 'alerts.security_enabled',
   ALERTS_PARSER: 'alerts.parser_enabled',
   ALERTS_TELEGRAM: 'alerts.telegram_enabled',
+  TELEGRAM_BOT_CONFIG: 'telegram.bot_config',
   TELEGRAM_CONFIG: 'alerts.telegram_config',
   SMTP_CONFIG: 'smtp.config',
   PARSER_CONFIG: 'parser.config',
@@ -44,9 +45,11 @@ export type ParserConfigValue = {
   apiKeySecretId: string | null;
 };
 
-export type TelegramConfigValue = {
-  chatId: string;
+export type TelegramBotConfigValue = {
   botTokenSecretId: string | null;
+  webhookRegisteredAt: string | null;
+  webhookOk: boolean;
+  lastWebhookError: string | null;
 };
 
 export type PaymentProviderConfigValue = {

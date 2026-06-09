@@ -20,7 +20,7 @@ import {
   SECRET_KEYS,
   SETTING_KEYS,
   SmtpConfigValue,
-  TelegramConfigValue,
+  TelegramBotConfigValue,
 } from './system-settings.constants';
 import { buildSmtpTransportOptions } from '../common/utils/smtp-transport.util';
 
@@ -460,14 +460,16 @@ export class SystemIntegrationsService {
   }
 
   async getAlertSettings() {
-    const telegram = await this.settings.getJson<TelegramConfigValue>(SETTING_KEYS.TELEGRAM_CONFIG, {
-      chatId: '',
+    const botCfg = await this.settings.getJson<TelegramBotConfigValue>(SETTING_KEYS.TELEGRAM_BOT_CONFIG, {
       botTokenSecretId: null,
+      webhookRegisteredAt: null,
+      webhookOk: false,
+      lastWebhookError: null,
     });
     let hasTelegramBotToken = false;
-    if (telegram.botTokenSecretId) {
+    if (botCfg.botTokenSecretId) {
       try {
-        const token = await this.secrets.getSecret(telegram.botTokenSecretId, PLATFORM_ORG_ID);
+        const token = await this.secrets.getSecret(botCfg.botTokenSecretId, PLATFORM_ORG_ID);
         hasTelegramBotToken = !!token;
       } catch {
         hasTelegramBotToken = false;
@@ -483,7 +485,6 @@ export class SystemIntegrationsService {
       securityAlerts: await this.settings.getBoolean(SETTING_KEYS.ALERTS_SECURITY, true),
       parserAlerts: await this.settings.getBoolean(SETTING_KEYS.ALERTS_PARSER, true),
       telegramEnabled: await this.settings.getBoolean(SETTING_KEYS.ALERTS_TELEGRAM, false),
-      telegramChatId: telegram.chatId,
       hasTelegramBotToken,
     };
   }
@@ -498,8 +499,6 @@ export class SystemIntegrationsService {
       securityAlerts?: boolean;
       parserAlerts?: boolean;
       telegramEnabled?: boolean;
-      telegramChatId?: string;
-      telegramBotToken?: string;
     },
     userId: string,
   ) {
@@ -527,80 +526,7 @@ export class SystemIntegrationsService {
       }
     }
 
-    if (dto.telegramChatId !== undefined || dto.telegramBotToken !== undefined) {
-      const current = await this.settings.getJson<TelegramConfigValue>(SETTING_KEYS.TELEGRAM_CONFIG, {
-        chatId: '',
-        botTokenSecretId: null,
-      });
-      let botTokenSecretId = current.botTokenSecretId;
-      if (dto.telegramBotToken?.trim()) {
-        botTokenSecretId = await this.secrets.upsertByKey(
-          PLATFORM_ORG_ID,
-          SECRET_KEYS.telegramBotToken,
-          dto.telegramBotToken.trim(),
-        );
-      }
-      const next: TelegramConfigValue = {
-        chatId: dto.telegramChatId ?? current.chatId,
-        botTokenSecretId,
-      };
-      await this.settings.set(SETTING_KEYS.TELEGRAM_CONFIG, next, userId, {
-        category: SystemSettingCategory.ALERT,
-        auditAction: AuditAction.ALERT_UPDATED,
-      });
-    }
-
     return this.getAlertSettings();
-  }
-
-  async resolveTelegramConfig(): Promise<{ chatId: string; botToken: string; enabled: boolean }> {
-    const enabled = await this.settings.getBoolean(SETTING_KEYS.ALERTS_TELEGRAM, false);
-    const cfg = await this.settings.getJson<TelegramConfigValue>(SETTING_KEYS.TELEGRAM_CONFIG, {
-      chatId: '',
-      botTokenSecretId: null,
-    });
-    let botToken = '';
-    if (cfg.botTokenSecretId) {
-      try {
-        botToken = (await this.secrets.getSecret(cfg.botTokenSecretId, PLATFORM_ORG_ID)) ?? '';
-      } catch {
-        botToken = '';
-      }
-    }
-    if (!botToken) {
-      botToken = this.config.get('TELEGRAM_BOT_TOKEN', '');
-    }
-    const chatId = cfg.chatId || this.config.get('TELEGRAM_CHAT_ID', '');
-    return { chatId, botToken, enabled };
-  }
-
-  async sendTelegramAlert(subject: string, body: string): Promise<boolean> {
-    const { chatId, botToken, enabled } = await this.resolveTelegramConfig();
-    if (!enabled || !chatId || !botToken) return false;
-
-    try {
-      const text = `*${subject.replace(/[*_`[\]]/g, '')}*\n${body}`.slice(0, 4000);
-      await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-        chat_id: chatId,
-        text,
-        parse_mode: 'Markdown',
-      });
-      return true;
-    } catch (e) {
-      this.logger.warn(`Telegram alert failed: ${e instanceof Error ? e.message : e}`);
-      return false;
-    }
-  }
-
-  async testTelegramAlert() {
-    const { chatId, botToken, enabled } = await this.resolveTelegramConfig();
-    if (!enabled) return { ok: false, message: 'Telegram alerts disabled' };
-    if (!chatId || !botToken) return { ok: false, message: 'Telegram bot token or chat ID not configured' };
-
-    const sent = await this.sendTelegramAlert('Test alert', 'AI Gateway — test Telegram notification');
-    return sent
-      ? { ok: true, message: 'Telegram test message sent' }
-      : { ok: false, message: 'Failed to send Telegram message' };
   }
 
   async sendTestAlert(userId: string) {
@@ -728,17 +654,24 @@ export class SystemIntegrationsService {
     const emailTest = await this.settings.getBoolean(SETTING_KEYS.LAUNCH_EMAIL_TEST, false);
     const publicUrl = await this.settings.getPublicUrl();
 
-    const paymentConfigured = !!(yookassa.shopId && yookassa.secretKey && !yookassa.mockMode);
+    const paymentConfigured = !!(yookassa.shopId && yookassa.secretKey);
+    const provider = await this.prisma.paymentProvider.findUnique({
+      where: { provider: PaymentProviderType.YOOKASSA },
+    });
 
     const checks = {
       paymentConfigured,
-      yookassaConfigured: paymentConfigured,
       smtpConfigured: smtp.configured,
       alertEmailConfigured: !!alerts.alertEmail,
-      registrationEnabled: registration.enabled,
-      webhookReachable: true,
+      webhookReachable: !!(provider?.isEnabled && paymentConfigured),
       paymentTestPassed: paymentTest,
       emailTestPassed: emailTest,
+    };
+
+    const informational = {
+      registrationEnabled: registration.enabled,
+      yookassaTestMode: await this.settings.isPaymentMockMode(),
+      yookassaEnabled: provider?.isEnabled ?? false,
     };
 
     const weights = Object.keys(checks).length;
@@ -748,6 +681,7 @@ export class SystemIntegrationsService {
 
     return {
       checks,
+      informational,
       readinessPercent,
       verdict: allGreen ? 'GO' : 'NO-GO',
       webhookUrl: `${publicUrl}/api/v1/payments/webhook/yookassa`,
